@@ -1,0 +1,4 @@
+bin/
+pkg/
+.*token
+*.log
