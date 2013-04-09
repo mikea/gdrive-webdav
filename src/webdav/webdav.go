@@ -128,6 +128,7 @@ func (h *handler) handlePropfind(r *http.Request) (status StatusCode, reader io.
 		}
 	}()
 
+	for k := range r.Header { log.Debug("request header key:[",k,"]=",r.Header.Get(k)) }
 	depth := r.Header.Get("Depth")
 
 	if depth != "0" && depth != "1" {
