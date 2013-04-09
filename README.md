@@ -19,4 +19,4 @@ Very, very experimental. Though it works.
 * Mac Finder: Read-only
 * Cyberduck: Appears to work (works also with Win8)
 * Win8: Cannot connect to http://localhost:8765/ , using WIN8 network share builtin webdav support
-** Win8 MiniRedirector Client does not seem to send correct PROPFIND. Missing xml on request body 0 length.
+  * Win8 MiniRedirector Client does not seem to send correct PROPFIND. Missing xml on request body 0 length.
