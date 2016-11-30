@@ -1,1 +1,1 @@
-go build github.com/mikea/gdrive-webdav/main
+go get -u github.com/mikea/gdrive-webdav/main
