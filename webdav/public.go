@@ -7,10 +7,13 @@ import (
 	"net/http"
 )
 
+// StatusCode is HTTP result code for all webdav operations
 type StatusCode int
 
+// MkColStatusCode is status code for MkCol operation
 type MkColStatusCode StatusCode
 
+// Standard MkCol errors
 const (
 	MkColCreated              MkColStatusCode = 201
 	MkColForbidden                            = 403
@@ -21,8 +24,10 @@ const (
 	MkColInsufficientStorage                  = 507
 )
 
+// CopyStatusCode is the status code for Copy
 type CopyStatusCode StatusCode
 
+// Copy status codes
 const (
 	CopyCreated             CopyStatusCode = 201
 	CopyNoContent                          = 204
@@ -37,8 +42,10 @@ const (
 	CopyInsufficientStorage                = 507
 )
 
+// MoveStatusCode is the status code for Move
 type MoveStatusCode StatusCode
 
+// Move status codes
 const (
 	MoveCreated            MoveStatusCode = 201
 	MoveNoContent                         = 204
@@ -50,14 +57,17 @@ const (
 	MoveBadGateway                        = 502
 )
 
+// DeleteStatusCode is the staus code for Delete
 type DeleteStatusCode StatusCode
 
+// Delete stauts codes
 const (
 	DeleteDeleted      DeleteStatusCode = 200
 	DeleteNotFound                      = 404
 	DeleteUnknownError                  = 500
 )
 
+// FileSystem is interface for webdav file system implementation
 type FileSystem interface {
 	MkDir(path string) MkColStatusCode
 	Delete(path string) DeleteStatusCode
@@ -68,20 +78,42 @@ type FileSystem interface {
 	Move(from string, to string, overwrite bool) MoveStatusCode
 }
 
+// PropertyValue interface for properties
 type PropertyValue interface {
 	xmlSerializable
 }
 
+// GetContentLengthPropertyValue tag type
 type GetContentLengthPropertyValue uint64
+
+// GetLastModifiedPropertyValue tag type
 type GetLastModifiedPropertyValue uint64
+
+// CreationDatePropertyValue tag type
 type CreationDatePropertyValue uint64
+
+// DisplayNamePropertyValue tag type
 type DisplayNamePropertyValue string
+
+// GetContentTypePropertyValue tag type
 type GetContentTypePropertyValue string
+
+// GetEtagPropertyValue tag type
 type GetEtagPropertyValue string
+
+// QuotaAvailableBytesPropertyValue tag type
 type QuotaAvailableBytesPropertyValue uint64
+
+// QuotaUsedBytesPropertyValue tag type
 type QuotaUsedBytesPropertyValue uint64
+
+// QuotaPropertyValue tag type
 type QuotaPropertyValue uint64
+
+// QuotaUsedPropertyValue tag type
 type QuotaUsedPropertyValue uint64
+
+// ResourceTypePropertyValue tag type
 type ResourceTypePropertyValue bool // true for directories, false otherwise
 
 // Handler creates a new webdav handler given the filesystem.

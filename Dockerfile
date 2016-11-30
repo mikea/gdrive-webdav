@@ -12,6 +12,6 @@ COPY . /go/src/github.com/mikea/gdrive-webdav/
 
 
 RUN go get -v github.com/mikea/gdrive-webdav/main
-RUN golint github.com/mikea/gdrive-webdav/...
+RUN golint -set_exit_status github.com/mikea/gdrive-webdav/...
 
 CMD go run github.com/mikea/gdrive-webdav/main

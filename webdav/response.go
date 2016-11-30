@@ -92,54 +92,63 @@ func (s status) XML(b *bytes.Buffer) {
 	b.WriteString(fmt.Sprintf("<status>HTTP/1.1 %d %s</status>", s, template.HTMLEscapeString(http.StatusText(int(s)))))
 }
 
+// XML serializes to xml string.
 func (c CreationDatePropertyValue) XML(b *bytes.Buffer) {
 	b.WriteString("<creationdate>")
 	b.WriteString(epochToXMLTime(int64(c)))
 	b.WriteString("</creationdate>")
 }
 
+// XML serializes to xml string.
 func (g GetLastModifiedPropertyValue) XML(b *bytes.Buffer) {
 	b.WriteString("<getlastmodified>")
 	b.WriteString(epochToXMLTime(int64(g)))
 	b.WriteString("</getlastmodified>")
 }
 
+// XML serializes to xml string.
 func (l GetContentLengthPropertyValue) XML(b *bytes.Buffer) {
 	b.WriteString("<getcontentlength>")
 	b.WriteString(fmt.Sprint(l))
 	b.WriteString("</getcontentlength>")
 }
 
+// XML serializes to xml string.
 func (d DisplayNamePropertyValue) XML(b *bytes.Buffer) {
 	b.WriteString("<displayname>")
 	xml.Escape(b, []byte(d))
 	b.WriteString("</displayname>")
 }
 
+// XML serializes to xml string.
 func (c GetContentTypePropertyValue) XML(b *bytes.Buffer) {
 	b.WriteString("<getcontenttype>")
 	b.WriteString(string(c))
 	b.WriteString("</getcontenttype>")
 }
 
+// XML serializes to xml string.
 func (c GetEtagPropertyValue) XML(b *bytes.Buffer) {
 	b.WriteString("<getetag>")
 	b.WriteString(string(c))
 	b.WriteString("</getetag>")
 }
 
+// XML serializes to xml string.
 func (l QuotaAvailableBytesPropertyValue) XML(b *bytes.Buffer) {
 	b.WriteString("<quota-available-bytes>")
 	b.WriteString(fmt.Sprint(l))
 	b.WriteString("</quota-available-bytes>")
 }
 
+// XML serializes to xml string.
 func (l QuotaUsedBytesPropertyValue) XML(b *bytes.Buffer) {
 	b.WriteString("<quota-used-bytes>")
 	b.WriteString(fmt.Sprint(l))
 	b.WriteString("</quota-used-bytes>")
 }
 
+// XML serializes to xml string.
 func (r ResourceTypePropertyValue) XML(b *bytes.Buffer) {
 	b.WriteString("<resourcetype>")
 	if r {
