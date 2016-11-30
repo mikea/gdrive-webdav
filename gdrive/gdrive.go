@@ -20,6 +20,7 @@ import (
 	"google.golang.org/api/drive/v3"
 )
 
+// FileSystem is an instance of GDrive file system.
 type FileSystem struct {
 	client       *drive.Service
 	roundTripper http.RoundTripper
@@ -41,6 +42,7 @@ type fileAndPath struct {
 	path string
 }
 
+// NewFileSystem creates new gdrive file system.
 func NewFileSystem(ctx context.Context, clientID string, clientSecret string) *FileSystem {
 	config := &oauth2.Config{
 		Scopes:      []string{"https://www.googleapis.com/auth/drive"},
@@ -140,8 +142,9 @@ func saveToken(token *oauth2.Token) error {
 	return json.NewEncoder(f).Encode(token)
 }
 
+// MkDir creates a directory
 func (fs *FileSystem) MkDir(p string) webdav.MkColStatusCode {
-	pID := fs.getFileId(p, false)
+	pID := fs.getFileID(p, false)
 	if pID != "" {
 		log.Errorf("dir already exists: %v", pID)
 		return webdav.MkColMethodNotAllowed
@@ -151,7 +154,7 @@ func (fs *FileSystem) MkDir(p string) webdav.MkColStatusCode {
 	parent := path.Dir(p)
 	dir := path.Base(p)
 
-	parentID := fs.getFileId(parent, true)
+	parentID := fs.getFileID(parent, true)
 
 	if parentID == "" {
 		log.Errorf("parent not found")
@@ -175,8 +178,9 @@ func (fs *FileSystem) MkDir(p string) webdav.MkColStatusCode {
 	return webdav.MkColCreated
 }
 
+// Delete deletes the file
 func (fs *FileSystem) Delete(p string) webdav.DeleteStatusCode {
-	pID := fs.getFileId(p, false)
+	pID := fs.getFileID(p, false)
 	if pID == "" {
 		return webdav.DeleteNotFound
 	}
@@ -192,12 +196,13 @@ func (fs *FileSystem) Delete(p string) webdav.DeleteStatusCode {
 	return webdav.DeleteDeleted
 }
 
+// Put uploads the file.
 func (fs *FileSystem) Put(p string, bytes io.ReadCloser) webdav.StatusCode {
 	defer bytes.Close()
 	parent := path.Dir(p)
 	base := path.Base(p)
 
-	parentID := fs.getFileId(parent, true)
+	parentID := fs.getFileID(parent, true)
 
 	if parentID == "" {
 		log.Errorf("ERROR: Parent not found")
@@ -220,6 +225,7 @@ func (fs *FileSystem) Put(p string, bytes io.ReadCloser) webdav.StatusCode {
 	return webdav.StatusCode(201)
 }
 
+// Get downloads the file.
 func (fs *FileSystem) Get(p string) (webdav.StatusCode, io.ReadCloser, int64) {
 	pFile := fs.getFile(p, false)
 	if pFile == nil {
@@ -249,6 +255,7 @@ func (fs *FileSystem) Get(p string) (webdav.StatusCode, io.ReadCloser, int64) {
 	return webdav.StatusCode(200), resp.Body, f.Size
 }
 
+// PropList fetches file properties.
 func (fs *FileSystem) PropList(p string, depth int, props []string) (webdav.StatusCode, map[string][]webdav.PropertyValue) {
 	f := fs.getFile(p, false)
 
@@ -286,6 +293,7 @@ func (fs *FileSystem) PropList(p string, depth int, props []string) (webdav.Stat
 	return fs.listPropsFromFiles(files, props)
 }
 
+// Copy creates a file copy.
 func (fs *FileSystem) Copy(from string, to string, depth int, overwrite bool) webdav.CopyStatusCode {
 	log.Debug("DoCopy ", from, " -> ", to)
 	to = strings.TrimRight(to, "/")
@@ -355,6 +363,7 @@ func (fs *FileSystem) Copy(from string, to string, depth int, overwrite bool) we
 	return status
 }
 
+// Move moves the file.
 func (fs *FileSystem) Move(from string, to string, overwrite bool) webdav.MoveStatusCode {
 	fromFile := fs.getFile(from, false)
 	toFile := fs.getFile(to, false)
@@ -463,7 +472,7 @@ func (fs *FileSystem) listPropsFromFiles(files []*fileAndPath, props []string) (
 	return webdav.StatusCode(200), result
 }
 
-func (fs *FileSystem) getFileId(p string, onlyFolder bool) string {
+func (fs *FileSystem) getFileID(p string, onlyFolder bool) string {
 	f := fs.getFile(p, onlyFolder)
 
 	if f == nil {
@@ -473,7 +482,7 @@ func (fs *FileSystem) getFileId(p string, onlyFolder bool) string {
 	return f.file.Id
 }
 
-type FileLookupResult struct {
+type fileLookupResult struct {
 	fp *fileAndPath
 }
 
@@ -482,10 +491,10 @@ func (fs *FileSystem) getFile(p string, onlyFolder bool) *fileAndPath {
 
 	if lookup, found := fs.cache.Get(key); found {
 		log.Debug("Reusing cached file: ", p)
-		return lookup.(*FileLookupResult).fp
+		return lookup.(*fileLookupResult).fp
 	}
 
-	lookup := &FileLookupResult{fp: fs.getFile0(p, onlyFolder)}
+	lookup := &fileLookupResult{fp: fs.getFile0(p, onlyFolder)}
 	fs.cache.Set(key, lookup, time.Minute)
 	return lookup.fp
 }
@@ -508,7 +517,7 @@ func (fs *FileSystem) getFile0(p string, onlyFolder bool) *fileAndPath {
 	parent := path.Dir(p)
 	base := path.Base(p)
 
-	parentID := fs.getFileId(parent, true)
+	parentID := fs.getFileID(parent, true)
 	if parentID == "" {
 		// todo: handle errors better
 		return nil

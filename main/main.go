@@ -43,7 +43,7 @@ func main() {
 
 	http.HandleFunc("/debug/gc", gcHandler)
 	http.HandleFunc("/favicon.ico", notFoundHandler)
-	http.HandleFunc("/", webdav.NewHandler(fs))
+	http.HandleFunc("/", webdav.Handler(fs))
 
 	fmt.Printf("Listening on %v\n", *addr)
 

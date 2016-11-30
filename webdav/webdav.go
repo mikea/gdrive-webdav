@@ -123,7 +123,7 @@ func (h *handler) handleGet(w http.ResponseWriter, r *http.Request) (StatusCode,
 func (h *handler) handlePropfind(r *http.Request) (status StatusCode, reader io.ReadCloser) {
 	// xml parsing error
 	defer func() {
-		if err, ok := recover().(XmlError); ok {
+		if err, ok := recover().(XMLError); ok {
 			log.Error("Can't parse xml. error=", err)
 			status = StatusCode(400)
 		}

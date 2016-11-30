@@ -6,7 +6,8 @@ import (
 	"io"
 )
 
-type XmlError string
+// XMLError is raised when xml parsing error occures.
+type XMLError string
 
 func parsexml(r io.Reader) *xmlparser {
 	x := &xmlparser{p: xml.NewDecoder(r)}
@@ -29,14 +30,14 @@ func (x *xmlparser) next() xml.Token {
 		if err == io.EOF {
 			return x.cur
 		} else if err != nil {
-			panic(XmlError("error fetching token"))
+			panic(XMLError("error fetching token"))
 		}
 		switch tok := x.cur.(type) {
 		case xml.StartElement:
 			if tok.Name.Space != "DAV:" {
 				err = x.p.Skip()
 				if err != nil && err != io.EOF {
-					panic(XmlError("error skipping other namespace"))
+					panic(XMLError("error skipping other namespace"))
 				}
 			} else {
 				return x.cur
@@ -50,7 +51,7 @@ func (x *xmlparser) next() xml.Token {
 func (x *xmlparser) start(name string) bool {
 	el, ok := x.cur.(xml.StartElement)
 	if !ok {
-		panic(XmlError("can't cast cur"))
+		panic(XMLError("can't cast cur"))
 	}
 
 	if el.Name.Local != name {
@@ -63,14 +64,14 @@ func (x *xmlparser) start(name string) bool {
 func (x *xmlparser) mustStart(name string) {
 	if !x.start(name) {
 		el, _ := x.cur.(xml.StartElement)
-		panic(XmlError(fmt.Sprint("expected ", name, " but got ", el.Name.Local)))
+		panic(XMLError(fmt.Sprint("expected ", name, " but got ", el.Name.Local)))
 	}
 }
 
 func (x *xmlparser) end(name string) bool {
 	if _, ok := x.cur.(xml.EndElement); !ok {
 		// todo: validate
-		panic(XmlError("can't cast cur"))
+		panic(XMLError("can't cast cur"))
 	}
 	x.next()
 	return true
