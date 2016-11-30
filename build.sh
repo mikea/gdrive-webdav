@@ -1,2 +1,1 @@
-GOARCH=amd64 GOPATH=`pwd` go build main
-
+go build github.com/mikea/gdrive-webdav/main

@@ -1,37 +1,34 @@
 package gdrive
 
 import (
-	"code.google.com/p/goauth2/oauth"
-	"code.google.com/p/google-api-go-client/drive/v2"
+	"encoding/json"
 	"flag"
 	"fmt"
-	log "github.com/cihub/seelog"
-	gocache "github.com/pmylund/go-cache"
 	"io"
 	"net/http"
+	"os"
 	"os/user"
 	"path"
 	"strings"
 	"time"
-	"webdav"
+
+	log "github.com/cihub/seelog"
+	"github.com/mikea/gdrive-webdav/webdav"
+	gocache "github.com/pmylund/go-cache"
+	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
+	"google.golang.org/api/drive/v3"
 )
 
-type GDriveFileSystem struct {
-	client    *drive.Service
-	transport *oauth.Transport
-	cache     *gocache.Cache
+type FileSystem struct {
+	client       *drive.Service
+	roundTripper http.RoundTripper
+	cache        *gocache.Cache
 }
 
 var (
 	tokenFileFlag = flag.String("token-file", "", "OAuth token cache file. ~/.gdrive_token by default.")
 )
-
-var config = &oauth.Config{
-	Scope:       "https://www.googleapis.com/auth/drive",
-	RedirectURL: "urn:ietf:wg:oauth:2.0:oob",
-	AuthURL:     "https://accounts.google.com/o/oauth2/auth",
-	TokenURL:    "https://accounts.google.com/o/oauth2/token",
-}
 
 const (
 	mimeTypeFolder = "application/vnd.google-apps.folder"
@@ -44,41 +41,106 @@ type fileAndPath struct {
 	path string
 }
 
-func NewGDriveFileSystem(clientId string, clientSecret string) *GDriveFileSystem {
-	u, err := user.Current()
-
-	tokenFile := u.HomeDir + "/.gdrive_token"
-
-	if *tokenFileFlag != "" {
-		tokenFile = *tokenFileFlag
+func NewFileSystem(ctx context.Context, clientID string, clientSecret string) *FileSystem {
+	config := &oauth2.Config{
+		Scopes:      []string{"https://www.googleapis.com/auth/drive"},
+		RedirectURL: "urn:ietf:wg:oauth:2.0:oob",
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://accounts.google.com/o/oauth2/auth",
+			TokenURL: "https://accounts.google.com/o/oauth2/token",
+		},
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
 	}
 
-	config.TokenCache = oauth.CacheFile(tokenFile)
-	config.ClientId = clientId
-	config.ClientSecret = clientSecret
-
-	transport := &oauth.Transport{
-		Config:    config,
-		Transport: &loggingTransport{http.DefaultTransport},
+	tok, err := getTokenFromFile()
+	if err != nil {
+		tok = getTokenFromWeb(config)
+		err = saveToken(tok)
+		if err != nil {
+			log.Errorf("An error occurred saving token file: %v\n", err)
+		}
 	}
 
-	obtainToken(transport)
-
-	client, err := drive.New(transport.Client())
+	httpClient := config.Client(ctx, nil)
+	client, err := drive.New(httpClient)
 	if err != nil {
 		log.Errorf("An error occurred creating Drive client: %v\n", err)
 		panic(-3)
 	}
 
-	fs := &GDriveFileSystem{
-		client:    client,
-		transport: transport,
-		cache:     gocache.New(5*time.Minute, 30*time.Second),
+	fs := &FileSystem{
+		client:       client,
+		roundTripper: httpClient.Transport,
+		cache:        gocache.New(5*time.Minute, 30*time.Second),
 	}
 	return fs
 }
 
-func (fs *GDriveFileSystem) MkDir(p string) webdav.MkColStatusCode {
+func tokenFile() (string, error) {
+	u, err := user.Current()
+	if err != nil {
+		return "", err
+	}
+	if *tokenFileFlag != "" {
+		return *tokenFileFlag, nil
+	}
+
+	return u.HomeDir + "/.gdrive_token", nil
+}
+
+func getTokenFromFile() (*oauth2.Token, error) {
+	tokenFile, err := tokenFile()
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := os.Open(tokenFile)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	t := &oauth2.Token{}
+	err = json.NewDecoder(f).Decode(t)
+	if err != nil {
+		return nil, err
+	}
+	return t, err
+}
+
+func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
+	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	fmt.Printf("Go to the following link in your browser then type the "+
+		"authorization code: \n%v\n", authURL)
+
+	var code string
+	if _, err := fmt.Scan(&code); err != nil {
+		log.Criticalf("Unable to read authorization code %v", err)
+	}
+
+	tok, err := config.Exchange(oauth2.NoContext, code)
+	if err != nil {
+		log.Criticalf("Unable to retrieve token from web %v", err)
+	}
+	return tok
+}
+
+func saveToken(token *oauth2.Token) error {
+	file, err := tokenFile()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Saving credential file to: %s\n", file)
+	f, err := os.Create(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return json.NewEncoder(f).Encode(token)
+}
+
+func (fs *FileSystem) MkDir(p string) webdav.MkColStatusCode {
 	pId := fs.getFileId(p, false)
 	if pId != "" {
 		log.Errorf("dir already exists: %v", pId)
@@ -89,25 +151,20 @@ func (fs *GDriveFileSystem) MkDir(p string) webdav.MkColStatusCode {
 	parent := path.Dir(p)
 	dir := path.Base(p)
 
-	parentId := fs.getFileId(parent, true)
+	parentID := fs.getFileId(parent, true)
 
-	if parentId == "" {
+	if parentID == "" {
 		log.Errorf("parent not found")
 		return webdav.MkColConflict
 	}
 
-	parentRef := &drive.ParentReference{
-		Id:     parentId,
-		IsRoot: "parent" == "/",
-	}
-
 	f := &drive.File{
 		MimeType: mimeTypeFolder,
-		Title:    dir,
-		Parents:  []*drive.ParentReference{parentRef},
+		Name:     dir,
+		Parents:  []string{parentID},
 	}
 
-	_, err := fs.client.Files.Insert(f).Do()
+	_, err := fs.client.Files.Create(f).Do()
 
 	if err != nil {
 		return webdav.MkColUnknownError
@@ -118,7 +175,7 @@ func (fs *GDriveFileSystem) MkDir(p string) webdav.MkColStatusCode {
 	return webdav.MkColCreated
 }
 
-func (fs *GDriveFileSystem) Delete(p string) webdav.DeleteStatusCode {
+func (fs *FileSystem) Delete(p string) webdav.DeleteStatusCode {
 	pId := fs.getFileId(p, false)
 	if pId == "" {
 		return webdav.DeleteNotFound
@@ -135,7 +192,7 @@ func (fs *GDriveFileSystem) Delete(p string) webdav.DeleteStatusCode {
 	return webdav.DeleteDeleted
 }
 
-func (fs *GDriveFileSystem) Put(p string, bytes io.ReadCloser) webdav.StatusCode {
+func (fs *FileSystem) Put(p string, bytes io.ReadCloser) webdav.StatusCode {
 	defer bytes.Close()
 	parent := path.Dir(p)
 	base := path.Base(p)
@@ -147,17 +204,12 @@ func (fs *GDriveFileSystem) Put(p string, bytes io.ReadCloser) webdav.StatusCode
 		return webdav.StatusCode(http.StatusConflict) // 409
 	}
 
-	parentRef := &drive.ParentReference{
-		Id:     parentId,
-		IsRoot: "parent" == "/",
-	}
-
 	f := &drive.File{
-		Title:   base,
-		Parents: []*drive.ParentReference{parentRef},
+		Name:    base,
+		Parents: []string{parentId},
 	}
 
-	_, err := fs.client.Files.Insert(f).Media(bytes).Do()
+	_, err := fs.client.Files.Create(f).Media(bytes).Do()
 	if err != nil {
 		log.Errorf("can't put: %v", err)
 		return webdav.StatusCode(500)
@@ -168,14 +220,14 @@ func (fs *GDriveFileSystem) Put(p string, bytes io.ReadCloser) webdav.StatusCode
 	return webdav.StatusCode(201)
 }
 
-func (fs *GDriveFileSystem) Get(p string) (webdav.StatusCode, io.ReadCloser, int64) {
+func (fs *FileSystem) Get(p string) (webdav.StatusCode, io.ReadCloser, int64) {
 	pFile := fs.getFile(p, false)
 	if pFile == nil {
 		return webdav.StatusCode(404), nil, -1
 	}
 
 	f := pFile.file
-	downloadUrl := f.DownloadUrl
+	downloadUrl := f.WebContentLink
 	log.Debug("downloadUrl=", downloadUrl)
 	if downloadUrl == "" {
 		log.Error("No download url: ", f)
@@ -188,16 +240,16 @@ func (fs *GDriveFileSystem) Get(p string) (webdav.StatusCode, io.ReadCloser, int
 		return webdav.StatusCode(500), nil, -1
 	}
 
-	resp, err := fs.transport.RoundTrip(req)
+	resp, err := fs.roundTripper.RoundTrip(req)
 	if err != nil {
 		log.Error("RoundTrip ", err)
 		return webdav.StatusCode(500), nil, -1
 	}
 
-	return webdav.StatusCode(200), resp.Body, f.FileSize
+	return webdav.StatusCode(200), resp.Body, f.Size
 }
 
-func (fs *GDriveFileSystem) PropList(p string, depth int, props []string) (webdav.StatusCode, map[string][]webdav.PropertyValue) {
+func (fs *FileSystem) PropList(p string, depth int, props []string) (webdav.StatusCode, map[string][]webdav.PropertyValue) {
 	f := fs.getFile(p, false)
 
 	log.Debug("PropList f=", f, " depth=", depth)
@@ -222,19 +274,19 @@ func (fs *GDriveFileSystem) PropList(p string, depth int, props []string) (webda
 			return webdav.StatusCode(505), nil
 		}
 
-		for _, file := range r.Items {
+		for _, file := range r.Files {
 			if ignoreFile(file) {
 				continue
 			}
 
-			files = append(files, &fileAndPath{file: file, path: path.Join(p, file.Title)})
+			files = append(files, &fileAndPath{file: file, path: path.Join(p, file.Name)})
 		}
 	}
 
 	return fs.listPropsFromFiles(files, props)
 }
 
-func (fs *GDriveFileSystem) Copy(from string, to string, depth int, overwrite bool) webdav.CopyStatusCode {
+func (fs *FileSystem) Copy(from string, to string, depth int, overwrite bool) webdav.CopyStatusCode {
 	log.Debug("DoCopy ", from, " -> ", to)
 	to = strings.TrimRight(to, "/")
 
@@ -285,14 +337,9 @@ func (fs *GDriveFileSystem) Copy(from string, to string, depth int, overwrite bo
 		return webdav.CopyUnknownError
 	}
 
-	log.Debug("8", to)
-	parentRef := &drive.ParentReference{
-		Id: toDirFile.file.Id,
-	}
-
 	f := &drive.File{
-		Title:   toBase,
-		Parents: []*drive.ParentReference{parentRef},
+		Name:    toBase,
+		Parents: []string{toDirFile.file.Id},
 	}
 
 	log.Debug("9", to)
@@ -308,7 +355,7 @@ func (fs *GDriveFileSystem) Copy(from string, to string, depth int, overwrite bo
 	return status
 }
 
-func (fs *GDriveFileSystem) Move(from string, to string, overwrite bool) webdav.MoveStatusCode {
+func (fs *FileSystem) Move(from string, to string, overwrite bool) webdav.MoveStatusCode {
 	fromFile := fs.getFile(from, false)
 	toFile := fs.getFile(to, false)
 
@@ -330,16 +377,12 @@ func (fs *GDriveFileSystem) Move(from string, to string, overwrite bool) webdav.
 		return webdav.CopyConflict
 	}
 
-	parentRef := &drive.ParentReference{
-		Id: toDirFile.file.Id,
-	}
-
 	f := &drive.File{
-		Title:   toBase,
-		Parents: []*drive.ParentReference{parentRef},
+		Name:    toBase,
+		Parents: []string{toDirFile.file.Id},
 	}
 
-	_, err := fs.client.Files.Patch(fromFile.file.Id, f).Do()
+	_, err := fs.client.Files.Update(fromFile.file.Id, f).Do()
 	if err != nil {
 		log.Error("Patch failed: ", err)
 		return webdav.CopyUnknownError
@@ -349,7 +392,7 @@ func (fs *GDriveFileSystem) Move(from string, to string, overwrite bool) webdav.
 	return webdav.MoveCreated
 }
 
-func (fs *GDriveFileSystem) listPropsFromFiles(files []*fileAndPath, props []string) (webdav.StatusCode, map[string][]webdav.PropertyValue) {
+func (fs *FileSystem) listPropsFromFiles(files []*fileAndPath, props []string) (webdav.StatusCode, map[string][]webdav.PropertyValue) {
 	result := make(map[string][]webdav.PropertyValue)
 
 	for _, fp := range files {
@@ -360,9 +403,9 @@ func (fs *GDriveFileSystem) listPropsFromFiles(files []*fileAndPath, props []str
 		for _, p := range props {
 			switch p {
 			case "getcontentlength":
-				pValues = append(pValues, webdav.GetContentLengthPropertyValue(f.FileSize))
+				pValues = append(pValues, webdav.GetContentLengthPropertyValue(f.Size))
 			case "displayname":
-				pValues = append(pValues, webdav.DisplayNamePropertyValue(f.Title))
+				pValues = append(pValues, webdav.DisplayNamePropertyValue(f.Name))
 			case "resourcetype":
 				b := false
 				if isFolder(f) {
@@ -376,16 +419,16 @@ func (fs *GDriveFileSystem) listPropsFromFiles(files []*fileAndPath, props []str
 				}
 				pValues = append(pValues, webdav.GetContentTypePropertyValue(s))
 			case "getlastmodified":
-				t, err := time.Parse(time.RFC3339, f.ModifiedDate)
+				t, err := time.Parse(time.RFC3339, f.ModifiedTime)
 				if err != nil {
-					log.Error("Can't parse modified date ", err, " ", f.ModifiedDate)
+					log.Error("Can't parse modified date ", err, " ", f.ModifiedTime)
 					return webdav.StatusCode(500), nil
 				}
 				pValues = append(pValues, webdav.GetLastModifiedPropertyValue(t.Unix()))
 			case "creationdate":
-				t, err := time.Parse(time.RFC3339, f.CreatedDate)
+				t, err := time.Parse(time.RFC3339, f.CreatedTime)
 				if err != nil {
-					log.Error("Can't parse CreationDate date ", err, " ", f.CreatedDate)
+					log.Error("Can't parse CreationDate date ", err, " ", f.CreatedTime)
 					return webdav.StatusCode(500), nil
 				}
 				pValues = append(pValues, webdav.GetLastModifiedPropertyValue(t.Unix()))
@@ -397,14 +440,14 @@ func (fs *GDriveFileSystem) listPropsFromFiles(files []*fileAndPath, props []str
 					log.Error("Can't get about info: ", err)
 					return webdav.StatusCode(500), nil
 				}
-				pValues = append(pValues, webdav.QuotaAvailableBytesPropertyValue(about.QuotaBytesTotal-about.QuotaBytesUsed))
+				pValues = append(pValues, webdav.QuotaAvailableBytesPropertyValue(about.StorageQuota.Limit-about.StorageQuota.Usage))
 			case "quota-used-bytes":
 				about, err := fs.about()
 				if err != nil {
 					log.Error("Can't get about info: ", err)
 					return webdav.StatusCode(500), nil
 				}
-				pValues = append(pValues, webdav.QuotaUsedBytesPropertyValue(about.QuotaBytesUsed))
+				pValues = append(pValues, webdav.QuotaUsedBytesPropertyValue(about.StorageQuota.UsageInDrive))
 			case "quotaused", "quota":
 				// ignore
 				continue
@@ -420,28 +463,7 @@ func (fs *GDriveFileSystem) listPropsFromFiles(files []*fileAndPath, props []str
 	return webdav.StatusCode(200), result
 }
 
-func obtainToken(transport *oauth.Transport) {
-	t, _ := config.TokenCache.Token()
-	if t != nil {
-		return
-	}
-
-	authUrl := config.AuthCodeURL("state")
-	fmt.Printf("Go to the following link in your browser: %v\n", authUrl)
-
-	fmt.Printf("Enter verification code: ")
-	var code string
-	fmt.Scanln(&code)
-
-	// Read the code, and exchange it for a token.
-	_, err := transport.Exchange(code)
-	if err != nil {
-		log.Errorf("An error occurred exchanging the token: %v\n", err)
-		panic(-2)
-	}
-}
-
-func (fs *GDriveFileSystem) getFileId(p string, onlyFolder bool) string {
+func (fs *FileSystem) getFileId(p string, onlyFolder bool) string {
 	f := fs.getFile(p, onlyFolder)
 
 	if f == nil {
@@ -455,7 +477,7 @@ type FileLookupResult struct {
 	fp *fileAndPath
 }
 
-func (fs *GDriveFileSystem) getFile(p string, onlyFolder bool) *fileAndPath {
+func (fs *FileSystem) getFile(p string, onlyFolder bool) *fileAndPath {
 	key := cacheKeyFile + p
 
 	if lookup, found := fs.cache.Get(key); found {
@@ -468,7 +490,7 @@ func (fs *GDriveFileSystem) getFile(p string, onlyFolder bool) *fileAndPath {
 	return lookup.fp
 }
 
-func (fs *GDriveFileSystem) getFile0(p string, onlyFolder bool) *fileAndPath {
+func (fs *FileSystem) getFile0(p string, onlyFolder bool) *fileAndPath {
 	if strings.HasSuffix(p, "/") {
 		p = strings.TrimRight(p, "/")
 	}
@@ -507,26 +529,26 @@ func (fs *GDriveFileSystem) getFile0(p string, onlyFolder bool) *fileAndPath {
 		return nil
 	}
 
-	for _, item := range r.Items {
-		if ignoreFile(item) {
+	for _, file := range r.Files {
+		if ignoreFile(file) {
 			continue
 		}
 
-		return &fileAndPath{file: item, path: p}
+		return &fileAndPath{file: file, path: p}
 	}
 
 	return nil
 }
 
 func ignoreFile(f *drive.File) bool {
-	return f.Labels.Trashed
+	return f.Trashed
 }
 
 func isFolder(f *drive.File) bool {
 	return f.MimeType == mimeTypeFolder
 }
 
-func (fs *GDriveFileSystem) about() (*drive.About, error) {
+func (fs *FileSystem) about() (*drive.About, error) {
 	if about, found := fs.cache.Get(cacheKeyAbout); found {
 		return about.(*drive.About), nil
 	}
@@ -540,6 +562,6 @@ func (fs *GDriveFileSystem) about() (*drive.About, error) {
 	return about, nil
 }
 
-func (fs *GDriveFileSystem) invalidatePath(p string) {
+func (fs *FileSystem) invalidatePath(p string) {
 	fs.cache.Delete(cacheKeyFile + p)
 }

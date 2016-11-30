@@ -1,0 +1,8 @@
+machine:
+  services:
+    - docker
+    
+test:
+  post:
+    - docker build -t $CIRCLE_PROJECT_REPONAME .
+    - docker run -v $CIRCLE_ARTIFACTS:/out $CIRCLE_PROJECT_REPONAME                                                                                 

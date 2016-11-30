@@ -3,13 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
-	"gdrive"
-	log "github.com/cihub/seelog"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"runtime"
-	"webdav"
+
+	"golang.org/x/net/context"
+
+	"github.com/mikea/gdrive-webdav/gdrive"
+
+	log "github.com/cihub/seelog"
+	"github.com/mikea/gdrive-webdav/webdav"
 )
 
 var (
@@ -19,6 +23,8 @@ var (
 )
 
 func main() {
+	ctx := context.Background()
+
 	defer log.Flush()
 	stdFormat()
 	flag.Parse()
@@ -33,7 +39,7 @@ func main() {
 		return
 	}
 
-	fs := gdrive.NewGDriveFileSystem(*clientId, *clientSecret)
+	fs := gdrive.NewFileSystem(ctx, *clientId, *clientSecret)
 
 	http.HandleFunc("/debug/gc", gcHandler)
 	http.HandleFunc("/favicon.ico", notFoundHandler)
