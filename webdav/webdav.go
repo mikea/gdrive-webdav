@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
-	log "github.com/cihub/seelog"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	log "github.com/cihub/seelog"
 )
 
 type handler struct {
@@ -42,8 +43,8 @@ func (h *handler) handle(w http.ResponseWriter, r *http.Request) {
 		writeStatus(h.handlePut(r), w)
 	case "COPY":
 		writeStatus(h.handleCopy(r), w)
-  case "MOVE":
-    writeStatus(h.handleMove(r), w)
+	case "MOVE":
+		writeStatus(h.handleMove(r), w)
 	case "LOCK":
 		writeStatus(h.handleLock(r), w)
 	default:
@@ -128,7 +129,9 @@ func (h *handler) handlePropfind(r *http.Request) (status StatusCode, reader io.
 		}
 	}()
 
-	for k := range r.Header { log.Debug("request header key:[",k,"]=",r.Header.Get(k)) }
+	for k := range r.Header {
+		log.Debug("request header key:[", k, "]=", r.Header.Get(k))
+	}
 	depth := r.Header.Get("Depth")
 
 	if depth != "0" && depth != "1" {
@@ -232,31 +235,30 @@ func (h *handler) handleCopy(r *http.Request) StatusCode {
 	return StatusCode(h.fs.Copy(p, dest, depth, overwrite))
 }
 
-
 func (h *handler) handleMove(r *http.Request) StatusCode {
-  var err error
+	var err error
 
-  p := url2path(r.URL)
+	p := url2path(r.URL)
 
-  dest, err := urlstring2path(r.Header.Get("Destination"))
-  if err != nil {
-    log.Error("Can't parse dest ", err)
-    return StatusCode(500)
-  }
+	dest, err := urlstring2path(r.Header.Get("Destination"))
+	if err != nil {
+		log.Error("Can't parse dest ", err)
+		return StatusCode(500)
+	}
 
-  overwrite := true
+	overwrite := true
 
-  if r.Header.Get("Overwrite") == "F" {
-    overwrite = false
-  }
+	if r.Header.Get("Overwrite") == "F" {
+		overwrite = false
+	}
 
-  log.Debug("Copy from ", p, " to ", dest, " overwrite=", overwrite)
+	log.Debug("Copy from ", p, " to ", dest, " overwrite=", overwrite)
 
-  return StatusCode(h.fs.Move(p, dest, overwrite))
+	return StatusCode(h.fs.Move(p, dest, overwrite))
 }
 
-func url2path(url_ *url.URL) string {
-	return url_.Path
+func url2path(url *url.URL) string {
+	return url.Path
 }
 
 func urlstring2path(u string) (string, error) {

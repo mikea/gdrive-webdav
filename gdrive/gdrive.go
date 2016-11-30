@@ -141,9 +141,9 @@ func saveToken(token *oauth2.Token) error {
 }
 
 func (fs *FileSystem) MkDir(p string) webdav.MkColStatusCode {
-	pId := fs.getFileId(p, false)
-	if pId != "" {
-		log.Errorf("dir already exists: %v", pId)
+	pID := fs.getFileId(p, false)
+	if pID != "" {
+		log.Errorf("dir already exists: %v", pID)
 		return webdav.MkColMethodNotAllowed
 	}
 
@@ -176,12 +176,12 @@ func (fs *FileSystem) MkDir(p string) webdav.MkColStatusCode {
 }
 
 func (fs *FileSystem) Delete(p string) webdav.DeleteStatusCode {
-	pId := fs.getFileId(p, false)
-	if pId == "" {
+	pID := fs.getFileId(p, false)
+	if pID == "" {
 		return webdav.DeleteNotFound
 	}
 
-	err := fs.client.Files.Delete(pId).Do()
+	err := fs.client.Files.Delete(pID).Do()
 	if err != nil {
 		log.Errorf("can't delete file %v", err)
 		return webdav.DeleteUnknownError
@@ -197,16 +197,16 @@ func (fs *FileSystem) Put(p string, bytes io.ReadCloser) webdav.StatusCode {
 	parent := path.Dir(p)
 	base := path.Base(p)
 
-	parentId := fs.getFileId(parent, true)
+	parentID := fs.getFileId(parent, true)
 
-	if parentId == "" {
+	if parentID == "" {
 		log.Errorf("ERROR: Parent not found")
 		return webdav.StatusCode(http.StatusConflict) // 409
 	}
 
 	f := &drive.File{
 		Name:    base,
-		Parents: []string{parentId},
+		Parents: []string{parentID},
 	}
 
 	_, err := fs.client.Files.Create(f).Media(bytes).Do()
@@ -227,14 +227,14 @@ func (fs *FileSystem) Get(p string) (webdav.StatusCode, io.ReadCloser, int64) {
 	}
 
 	f := pFile.file
-	downloadUrl := f.WebContentLink
-	log.Debug("downloadUrl=", downloadUrl)
-	if downloadUrl == "" {
+	downloadURL := f.WebContentLink
+	log.Debug("downloadURL=", downloadURL)
+	if downloadURL == "" {
 		log.Error("No download url: ", f)
 		return webdav.StatusCode(500), nil, -1
 	}
 
-	req, err := http.NewRequest("GET", downloadUrl, nil)
+	req, err := http.NewRequest("GET", downloadURL, nil)
 	if err != nil {
 		log.Error("NewRequest ", err)
 		return webdav.StatusCode(500), nil, -1
@@ -508,14 +508,14 @@ func (fs *FileSystem) getFile0(p string, onlyFolder bool) *fileAndPath {
 	parent := path.Dir(p)
 	base := path.Base(p)
 
-	parentId := fs.getFileId(parent, true)
-	if parentId == "" {
+	parentID := fs.getFileId(parent, true)
+	if parentID == "" {
 		// todo: handle errors better
 		return nil
 	}
 
 	q := fs.client.Files.List()
-	query := fmt.Sprintf("'%s' in parents and title='%s'", parentId, base)
+	query := fmt.Sprintf("'%s' in parents and title='%s'", parentID, base)
 	if onlyFolder {
 		query += " and mimeType='" + mimeTypeFolder + "'"
 	}
@@ -525,7 +525,7 @@ func (fs *FileSystem) getFile0(p string, onlyFolder bool) *fileAndPath {
 
 	if err != nil {
 		// todo: handle errors better
-		log.Errorf("can't list for query %v : ", query, err)
+		log.Errorf("can't list for query %v : %v", query, err)
 		return nil
 	}
 

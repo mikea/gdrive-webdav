@@ -18,7 +18,7 @@ import (
 
 var (
 	addr         = flag.String("addr", ":8765", "WebDAV service address")
-	clientId     = flag.String("client-id", "", "OAuth client id")
+	clientID     = flag.String("client-id", "", "OAuth client id")
 	clientSecret = flag.String("client-secret", "", "OAuth client secret")
 )
 
@@ -29,7 +29,7 @@ func main() {
 	stdFormat()
 	flag.Parse()
 
-	if *clientId == "" {
+	if *clientID == "" {
 		fmt.Fprintln(os.Stderr, "--client-id is not specified. See https://developers.google.com/drive/quickstart-go for step-by-step guide.")
 		return
 	}
@@ -39,7 +39,7 @@ func main() {
 		return
 	}
 
-	fs := gdrive.NewFileSystem(ctx, *clientId, *clientSecret)
+	fs := gdrive.NewFileSystem(ctx, *clientID, *clientSecret)
 
 	http.HandleFunc("/debug/gc", gcHandler)
 	http.HandleFunc("/favicon.ico", notFoundHandler)

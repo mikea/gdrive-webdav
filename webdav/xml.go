@@ -45,7 +45,6 @@ func (x *xmlparser) next() xml.Token {
 			return x.cur
 		}
 	}
-	panic("unreachable")
 }
 
 func (x *xmlparser) start(name string) bool {

@@ -84,8 +84,8 @@ type QuotaPropertyValue uint64
 type QuotaUsedPropertyValue uint64
 type ResourceTypePropertyValue bool // true for directories, false otherwise
 
-// Create a new webdav handler given the filesystem.
-func NewHandler(fs FileSystem) func(http.ResponseWriter, *http.Request) {
+// Handler creates a new webdav handler given the filesystem.
+func Handler(fs FileSystem) func(http.ResponseWriter, *http.Request) {
 	h := &handler{fs: fs}
 	return func(w http.ResponseWriter, r *http.Request) {
 		h.handle(w, r)
