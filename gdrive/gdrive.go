@@ -1,27 +1,23 @@
 package gdrive
 
 import (
-	"encoding/json"
+	"bytes"
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
-	"os/user"
 	"path"
 	"strings"
 	"time"
 
 	log "github.com/cihub/seelog"
-	"github.com/mikea/gdrive-webdav/webdav"
 	gocache "github.com/pmylund/go-cache"
 	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
+	"golang.org/x/net/webdav"
 	"google.golang.org/api/drive/v3"
 )
 
-// FileSystem is an instance of GDrive file system.
-type FileSystem struct {
+type fileSystem struct {
 	client       *drive.Service
 	roundTripper http.RoundTripper
 	cache        *gocache.Cache
@@ -42,36 +38,16 @@ type fileAndPath struct {
 	path string
 }
 
-// NewFileSystem creates new gdrive file system.
-func NewFileSystem(ctx context.Context, clientID string, clientSecret string) *FileSystem {
-	config := &oauth2.Config{
-		Scopes:      []string{"https://www.googleapis.com/auth/drive"},
-		RedirectURL: "urn:ietf:wg:oauth:2.0:oob",
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://accounts.google.com/o/oauth2/auth",
-			TokenURL: "https://accounts.google.com/o/oauth2/token",
-		},
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-	}
-
-	tok, err := getTokenFromFile()
-	if err != nil {
-		tok = getTokenFromWeb(config)
-		err = saveToken(tok)
-		if err != nil {
-			log.Errorf("An error occurred saving token file: %v\n", err)
-		}
-	}
-
-	httpClient := config.Client(ctx, nil)
+// NewFS creates new gdrive file system.
+func NewFS(ctx context.Context, clientID string, clientSecret string) webdav.FileSystem {
+	httpClient := newHTTPClient(ctx, clientID, clientSecret)
 	client, err := drive.New(httpClient)
 	if err != nil {
 		log.Errorf("An error occurred creating Drive client: %v\n", err)
 		panic(-3)
 	}
 
-	fs := &FileSystem{
+	fs := &fileSystem{
 		client:       client,
 		roundTripper: httpClient.Transport,
 		cache:        gocache.New(5*time.Minute, 30*time.Second),
@@ -79,86 +55,34 @@ func NewFileSystem(ctx context.Context, clientID string, clientSecret string) *F
 	return fs
 }
 
-func tokenFile() (string, error) {
-	u, err := user.Current()
-	if err != nil {
-		return "", err
-	}
-	if *tokenFileFlag != "" {
-		return *tokenFileFlag, nil
-	}
-
-	return u.HomeDir + "/.gdrive_token", nil
+// NewLS creates new GDrive locking system
+func NewLS() webdav.LockSystem {
+	return webdav.NewMemLS()
 }
 
-func getTokenFromFile() (*oauth2.Token, error) {
-	tokenFile, err := tokenFile()
-	if err != nil {
-		return nil, err
-	}
-
-	f, err := os.Open(tokenFile)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	t := &oauth2.Token{}
-	err = json.NewDecoder(f).Decode(t)
-	if err != nil {
-		return nil, err
-	}
-	return t, err
-}
-
-func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Go to the following link in your browser then type the "+
-		"authorization code: \n%v\n", authURL)
-
-	var code string
-	if _, err := fmt.Scan(&code); err != nil {
-		log.Criticalf("Unable to read authorization code %v", err)
-	}
-
-	tok, err := config.Exchange(oauth2.NoContext, code)
-	if err != nil {
-		log.Criticalf("Unable to retrieve token from web %v", err)
-	}
-	return tok
-}
-
-func saveToken(token *oauth2.Token) error {
-	file, err := tokenFile()
-	if err != nil {
+func (fs *fileSystem) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+	pID, err := fs.getFileID(name, false)
+	if err != os.ErrNotExist {
+		log.Errorf("Error: %v", err)
 		return err
 	}
-	fmt.Printf("Saving credential file to: %s\n", file)
-	f, err := os.Create(file)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return json.NewEncoder(f).Encode(token)
-}
-
-// MkDir creates a directory
-func (fs *FileSystem) MkDir(p string) webdav.MkColStatusCode {
-	pID := fs.getFileID(p, false)
-	if pID != "" {
+	if err == nil {
 		log.Errorf("dir already exists: %v", pID)
-		return webdav.MkColMethodNotAllowed
+		return os.ErrExist
 	}
 
-	p = strings.TrimRight(p, "/")
-	parent := path.Dir(p)
-	dir := path.Base(p)
+	name = strings.TrimRight(name, "/")
+	parent := path.Dir(name)
+	dir := path.Base(name)
 
-	parentID := fs.getFileID(parent, true)
+	parentID, err := fs.getFileID(parent, true)
+	if err != nil {
+		return err
+	}
 
 	if parentID == "" {
 		log.Errorf("parent not found")
-		return webdav.MkColConflict
+		return os.ErrNotExist
 	}
 
 	f := &drive.File{
@@ -167,33 +91,189 @@ func (fs *FileSystem) MkDir(p string) webdav.MkColStatusCode {
 		Parents:  []string{parentID},
 	}
 
-	_, err := fs.client.Files.Create(f).Do()
-
+	_, err = fs.client.Files.Create(f).Do()
 	if err != nil {
-		return webdav.MkColUnknownError
+		return err
 	}
 
-	fs.invalidatePath(p)
+	fs.invalidatePath(name)
 	fs.invalidatePath(parent)
-	return webdav.MkColCreated
+
+	return nil
+}
+
+type file struct {
+	fileSystem *fileSystem
+	buffer     *bytes.Buffer
+	name       string
+	flag       int
+	perm       os.FileMode
+}
+
+func (f *file) Write(p []byte) (n int, err error) {
+	if f.buffer == nil {
+		f.buffer = bytes.NewBuffer(p)
+		return n, nil
+	}
+	return f.buffer.Write(p)
+}
+
+func (f *file) Readdir(count int) ([]os.FileInfo, error) {
+	panic("not implemented")
+}
+
+func (f *file) Stat() (os.FileInfo, error) {
+	return &fileInfo{}, nil
+}
+
+func (f *file) Close() error {
+	fs := f.fileSystem
+
+	if f.buffer != nil {
+		fileID, err := fs.getFileID(f.name, false)
+		if err != nil {
+			return err
+		}
+
+		if fileID != "" {
+			return os.ErrExist
+		}
+
+		parent := path.Dir(f.name)
+		base := path.Base(f.name)
+
+		parentID, err := fs.getFileID(parent, true)
+		if err != nil {
+
+		}
+
+		if parentID == "" {
+			log.Errorf("ERROR: Parent not found")
+			return os.ErrNotExist
+		}
+
+		file := &drive.File{
+			Name:    base,
+			Parents: []string{parentID},
+		}
+
+		_, err = fs.client.Files.Create(file).Media(f.buffer).Do()
+		if err != nil {
+			log.Errorf("can't put: %v", err)
+			return err
+		}
+
+		fs.invalidatePath(f.name)
+		fs.invalidatePath(parent)
+		return nil
+	}
+
+	panic("not implemented")
+}
+func (f *file) Read(p []byte) (n int, err error) {
+	panic("not implemented")
+}
+func (f *file) Seek(offset int64, whence int) (int64, error) {
+	panic("not implemented")
+}
+
+func (fs *fileSystem) OpenFile(ctx context.Context, name string, flag int, perm os.FileMode) (webdav.File, error) {
+	return &file{
+		fileSystem: fs,
+		name:       name,
+		flag:       flag,
+		perm:       perm,
+	}, nil
+}
+
+func (fs *fileSystem) RemoveAll(ctx context.Context, name string) error {
+	id, err := fs.getFileID(name, false)
+	if err != nil {
+		return err
+	}
+
+	err = fs.client.Files.Delete(id).Do()
+	if err != nil {
+		log.Errorf("can't delete file %v", err)
+		return err
+	}
+
+	fs.invalidatePath(name)
+	fs.invalidatePath(path.Dir(name))
+	return nil
+
+}
+func (fs *fileSystem) Rename(ctx context.Context, oldName, newName string) error {
+	panic("not implemented")
+}
+
+type fileInfo struct {
+	file *drive.File
+}
+
+func (fi *fileInfo) IsDir() bool {
+	return fi.file.MimeType == mimeTypeFolder
+}
+
+func (fi *fileInfo) Name() string {
+	panic("not implemented")
+}
+func (fi *fileInfo) Size() int64 {
+	panic("not implemented")
+}
+func (fi *fileInfo) Mode() os.FileMode {
+	panic("not implemented")
+}
+func (fi *fileInfo) ModTime() time.Time {
+	panic("not implemented")
+}
+func (fi *fileInfo) Sys() interface{} {
+	panic("not implemented")
+}
+
+func (fs *fileSystem) Stat(ctx context.Context, name string) (os.FileInfo, error) {
+	f, err := fs.getFile(name, false)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if f == nil {
+		log.Debug("Can't find file ", name)
+		return nil, os.ErrNotExist
+	}
+
+	return &fileInfo{file: f.file}, nil
+	// files := []*fileAndPath{f}
+
+	// query := fmt.Sprintf("'%s' in parents", f.file.Id)
+	// r, err := fs.client.Files.List().Q(query).Do()
+
+	// if err != nil {
+	// 	log.Error("Can't list children ", err)
+	// 	return nil, err
+	// }
+
+	// for _, file := range r.Files {
+	// 	if ignoreFile(file) {
+	// 		continue
+	// 	}
+
+	// 	files = append(files, &fileAndPath{file: file, path: path.Join(name, file.Name)})
+	// }
+
+	// return fs.listPropsFromFiles(files, props)
+}
+
+/*
+
+// MkDir creates a directory
+func (fs *FileSystem) MkDir(p string) webdav.MkColStatusCode {
+
 }
 
 // Delete deletes the file
 func (fs *FileSystem) Delete(p string) webdav.DeleteStatusCode {
-	pID := fs.getFileID(p, false)
-	if pID == "" {
-		return webdav.DeleteNotFound
-	}
-
-	err := fs.client.Files.Delete(pID).Do()
-	if err != nil {
-		log.Errorf("can't delete file %v", err)
-		return webdav.DeleteUnknownError
-	}
-
-	fs.invalidatePath(p)
-	fs.invalidatePath(path.Dir(p))
-	return webdav.DeleteDeleted
 }
 
 // Put uploads the file.
@@ -257,40 +337,6 @@ func (fs *FileSystem) Get(p string) (webdav.StatusCode, io.ReadCloser, int64) {
 
 // PropList fetches file properties.
 func (fs *FileSystem) PropList(p string, depth int, props []string) (webdav.StatusCode, map[string][]webdav.PropertyValue) {
-	f := fs.getFile(p, false)
-
-	log.Debug("PropList f=", f, " depth=", depth)
-	if f == nil {
-		log.Debug("Can't find file ", p)
-		return webdav.StatusCode(404), nil
-	}
-
-	if depth != 0 && depth != 1 {
-		log.Error("Unsupported depth ", depth)
-		return webdav.StatusCode(500), nil
-	}
-
-	files := []*fileAndPath{f}
-
-	if depth == 1 {
-		query := fmt.Sprintf("'%s' in parents", f.file.Id)
-		r, err := fs.client.Files.List().Q(query).Do()
-
-		if err != nil {
-			log.Error("Can't list children ", err)
-			return webdav.StatusCode(505), nil
-		}
-
-		for _, file := range r.Files {
-			if ignoreFile(file) {
-				continue
-			}
-
-			files = append(files, &fileAndPath{file: file, path: path.Join(p, file.Name)})
-		}
-	}
-
-	return fs.listPropsFromFiles(files, props)
 }
 
 // Copy creates a file copy.
@@ -472,86 +518,7 @@ func (fs *FileSystem) listPropsFromFiles(files []*fileAndPath, props []string) (
 	return webdav.StatusCode(200), result
 }
 
-func (fs *FileSystem) getFileID(p string, onlyFolder bool) string {
-	f := fs.getFile(p, onlyFolder)
 
-	if f == nil {
-		return ""
-	}
-
-	return f.file.Id
-}
-
-type fileLookupResult struct {
-	fp *fileAndPath
-}
-
-func (fs *FileSystem) getFile(p string, onlyFolder bool) *fileAndPath {
-	key := cacheKeyFile + p
-
-	if lookup, found := fs.cache.Get(key); found {
-		log.Debug("Reusing cached file: ", p)
-		return lookup.(*fileLookupResult).fp
-	}
-
-	lookup := &fileLookupResult{fp: fs.getFile0(p, onlyFolder)}
-	fs.cache.Set(key, lookup, time.Minute)
-	return lookup.fp
-}
-
-func (fs *FileSystem) getFile0(p string, onlyFolder bool) *fileAndPath {
-	if strings.HasSuffix(p, "/") {
-		p = strings.TrimRight(p, "/")
-	}
-
-	if p == "" {
-		f, err := fs.client.Files.Get("root").Do()
-		if err != nil {
-			log.Errorf("can't get: %v", err)
-			// todo: handle errors better
-			return nil
-		}
-		return &fileAndPath{file: f, path: "/"}
-	}
-
-	parent := path.Dir(p)
-	base := path.Base(p)
-
-	parentID := fs.getFileID(parent, true)
-	if parentID == "" {
-		// todo: handle errors better
-		return nil
-	}
-
-	q := fs.client.Files.List()
-	query := fmt.Sprintf("'%s' in parents and title='%s'", parentID, base)
-	if onlyFolder {
-		query += " and mimeType='" + mimeTypeFolder + "'"
-	}
-	q.Q(query)
-
-	r, err := q.Do()
-
-	if err != nil {
-		// todo: handle errors better
-		log.Errorf("can't list for query %v : %v", query, err)
-		return nil
-	}
-
-	for _, file := range r.Files {
-		if ignoreFile(file) {
-			continue
-		}
-
-		return &fileAndPath{file: file, path: p}
-	}
-
-	return nil
-}
-
-func ignoreFile(f *drive.File) bool {
-	return f.Trashed
-}
 
 func isFolder(f *drive.File) bool {
 	return f.MimeType == mimeTypeFolder
@@ -571,6 +538,94 @@ func (fs *FileSystem) about() (*drive.About, error) {
 	return about, nil
 }
 
-func (fs *FileSystem) invalidatePath(p string) {
+*/
+
+func (fs *fileSystem) getFileID(p string, onlyFolder bool) (string, error) {
+	f, err := fs.getFile(p, onlyFolder)
+
+	if err != nil {
+		return "", err
+	}
+
+	return f.file.Id, nil
+}
+
+func (fs *fileSystem) invalidatePath(p string) {
 	fs.cache.Delete(cacheKeyFile + p)
+}
+
+type fileLookupResult struct {
+	fp  *fileAndPath
+	err error
+}
+
+func (fs *fileSystem) getFile(p string, onlyFolder bool) (*fileAndPath, error) {
+	key := cacheKeyFile + p
+
+	if lookup, found := fs.cache.Get(key); found {
+		log.Debug("Reusing cached file: ", p)
+		result := lookup.(*fileLookupResult)
+		return result.fp, result.err
+	}
+
+	fp, err := fs.getFile0(p, onlyFolder)
+	lookup := &fileLookupResult{fp: fp, err: err}
+	if err != nil {
+		fs.cache.Set(key, lookup, time.Minute)
+	}
+	return lookup.fp, lookup.err
+}
+
+func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) {
+	if strings.HasSuffix(p, "/") {
+		p = strings.TrimRight(p, "/")
+	}
+
+	if p == "" {
+		f, err := fs.client.Files.Get("root").Do()
+		if err != nil {
+			log.Errorf("E1: %v", err)
+			return nil, err
+		}
+		return &fileAndPath{file: f, path: "/"}, nil
+	}
+
+	parent := path.Dir(p)
+	base := path.Base(p)
+
+	parentID, err := fs.getFileID(parent, true)
+	if err != nil {
+		log.Errorf("E2: %v", err)
+		return nil, err
+	}
+
+	q := fs.client.Files.List()
+	query := fmt.Sprintf("'%s' in parents and name='%s'", parentID, base)
+	if onlyFolder {
+		query += " and mimeType='" + mimeTypeFolder + "'"
+	}
+	q.Q(query)
+	log.Errorf("Query: %v", q)
+
+	r, err := q.Do()
+
+	if err != nil {
+		log.Errorf("E4: %v", err)
+		return nil, err
+	}
+
+	for _, file := range r.Files {
+		if ignoreFile(file) {
+			continue
+		}
+
+		return &fileAndPath{file: file, path: p}, nil
+	}
+	log.Errorf("E5: %v", err)
+
+	return nil, os.ErrNotExist
+}
+
+func ignoreFile(f *drive.File) bool {
+	return f.Trashed
 }

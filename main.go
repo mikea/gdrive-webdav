@@ -8,12 +8,10 @@ import (
 	"os"
 	"runtime"
 
-	"golang.org/x/net/context"
-
-	"github.com/mikea/gdrive-webdav/gdrive"
-
 	log "github.com/cihub/seelog"
-	"github.com/mikea/gdrive-webdav/webdav"
+	"github.com/mikea/gdrive-webdav/gdrive"
+	"golang.org/x/net/context"
+	"golang.org/x/net/webdav"
 )
 
 var (
@@ -23,8 +21,6 @@ var (
 )
 
 func main() {
-	ctx := context.Background()
-
 	defer log.Flush()
 	stdFormat()
 	flag.Parse()
@@ -39,11 +35,14 @@ func main() {
 		return
 	}
 
-	fs := gdrive.NewFileSystem(ctx, *clientID, *clientSecret)
+	handler := &webdav.Handler{
+		FileSystem: gdrive.NewFS(context.Background(), *clientID, *clientSecret),
+		LockSystem: gdrive.NewLS(),
+	}
 
 	http.HandleFunc("/debug/gc", gcHandler)
 	http.HandleFunc("/favicon.ico", notFoundHandler)
-	http.HandleFunc("/", webdav.Handler(fs))
+	http.HandleFunc("/", handler.ServeHTTP)
 
 	fmt.Printf("Listening on %v\n", *addr)
 

@@ -3,16 +3,14 @@ Simple Google Drive => WebDAV bridge.
 Usage
 ==
 
-* Obtain OAuth keys and enable GDrive API (https://developers.google.com/drive/quickstart-go)
-* Install go 
-* Install go get tools hg and git and set their locations into PATH (https://code.google.com/p/go-wiki/wiki/GoGetTools)
-* Install all packages (if any) that ./run.sh reports: `go get -u <package>`
-* Run `./run.sh --client-id="<oauth-client-id>" --client-secret="<oauth-client-secret>"`
+* Obtain OAuth keys and enable GDrive API (https://developers.google.com/drive/v3/web/quickstart/go)
+
+
 
     
 Status
 ==
-Very, very experimental. Though it works.
+Alpha quality. I trust it my files.
 
 * Linux Nautilus: Readable/Writable
 * Linux davfs2: Some issues
