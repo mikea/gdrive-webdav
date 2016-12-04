@@ -1,10 +1,11 @@
 package gdrive
 
 import (
-	log "github.com/cihub/seelog"
+	"bytes"
 	"io/ioutil"
 	"net/http"
-	"bytes"
+
+	log "github.com/cihub/seelog"
 )
 
 type loggingTransport struct {
@@ -18,7 +19,7 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-		  return nil, err
+			return nil, err
 		}
 		log.Error("5xx error from server:", resp, "\nBody:\n", string(body))
 		resp.Body = ioutil.NopCloser(bytes.NewBuffer(body))

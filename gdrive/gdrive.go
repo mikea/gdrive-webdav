@@ -10,6 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"io/ioutil"
+
+	"io"
+
 	log "github.com/cihub/seelog"
 	gocache "github.com/pmylund/go-cache"
 	"golang.org/x/net/context"
@@ -61,9 +65,10 @@ func NewLS() webdav.LockSystem {
 }
 
 func (fs *fileSystem) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+	log.Debugf("Mkdir %v %v", name, perm)
 	pID, err := fs.getFileID(name, false)
-	if err != os.ErrNotExist {
-		log.Errorf("Error: %v", err)
+	if err != nil && err != os.ErrNotExist {
+		log.Error(err)
 		return err
 	}
 	if err == nil {
@@ -102,91 +107,220 @@ func (fs *fileSystem) Mkdir(ctx context.Context, name string, perm os.FileMode) 
 	return nil
 }
 
-type file struct {
+type openWritableFile struct {
+	ctx        context.Context
 	fileSystem *fileSystem
-	buffer     *bytes.Buffer
+	buffer     bytes.Buffer
+	size       int64
 	name       string
 	flag       int
 	perm       os.FileMode
 }
 
-func (f *file) Write(p []byte) (n int, err error) {
-	if f.buffer == nil {
-		f.buffer = bytes.NewBuffer(p)
-		return n, nil
-	}
-	return f.buffer.Write(p)
+func (f *openWritableFile) Write(p []byte) (int, error) {
+	n, err := f.buffer.Write(p)
+	f.size += int64(n)
+	return n, err
 }
 
-func (f *file) Readdir(count int) ([]os.FileInfo, error) {
+func (f *openWritableFile) Readdir(count int) ([]os.FileInfo, error) {
+	panic("not supported")
+}
+
+func (f *openWritableFile) Stat() (os.FileInfo, error) {
+	return &fileInfo{
+		isDir: false,
+		size:  f.size,
+	}, nil
+}
+
+func (f *openWritableFile) Close() error {
+	log.Debugf("Close %v", f.name)
+	fs := f.fileSystem
+	fileID, err := fs.getFileID(f.name, false)
+	if err != nil && err != os.ErrNotExist {
+		log.Error(err)
+		return err
+	}
+
+	if fileID != "" {
+		err = os.ErrExist
+		log.Error(err)
+		return err
+	}
+
+	parent := path.Dir(f.name)
+	base := path.Base(f.name)
+
+	parentID, err := fs.getFileID(parent, true)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	if parentID == "" {
+		err = os.ErrNotExist
+		log.Error(err)
+		return err
+	}
+
+	file := &drive.File{
+		Name:    base,
+		Parents: []string{parentID},
+	}
+
+	_, err = fs.client.Files.Create(file).Media(&f.buffer).Do()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	fs.invalidatePath(f.name)
+	fs.invalidatePath(parent)
+
+	log.Debug("Close succesfull ", f.name)
+	return nil
+}
+func (f *openWritableFile) Read(p []byte) (n int, err error) {
+	log.Critical("not implemented")
+	panic("not implemented")
+}
+func (f *openWritableFile) Seek(offset int64, whence int) (int64, error) {
+	log.Critical("not implemented")
 	panic("not implemented")
 }
 
-func (f *file) Stat() (os.FileInfo, error) {
-	return &fileInfo{}, nil
+type openReadonlyFile struct {
+	fs            *fileSystem
+	file          *drive.File
+	content       []byte
+	size          int64
+	pos           int64
+	contentReader io.Reader
 }
 
-func (f *file) Close() error {
-	fs := f.fileSystem
+func (f *openReadonlyFile) Write(p []byte) (int, error) {
+	log.Critical("not implemented")
+	panic("not implemented")
+}
 
-	if f.buffer != nil {
-		fileID, err := fs.getFileID(f.name, false)
-		if err != nil {
-			return err
-		}
+func (f *openReadonlyFile) Readdir(count int) ([]os.FileInfo, error) {
+	panic("not supported")
+}
 
-		if fileID != "" {
-			return os.ErrExist
-		}
+func (f *openReadonlyFile) Stat() (os.FileInfo, error) {
+	return newFileInfo(f.file), nil
+}
 
-		parent := path.Dir(f.name)
-		base := path.Base(f.name)
+func (f *openReadonlyFile) Close() error {
+	f.content = nil
+	f.contentReader = nil
+	return nil
+}
 
-		parentID, err := fs.getFileID(parent, true)
-		if err != nil {
-
-		}
-
-		if parentID == "" {
-			log.Errorf("ERROR: Parent not found")
-			return os.ErrNotExist
-		}
-
-		file := &drive.File{
-			Name:    base,
-			Parents: []string{parentID},
-		}
-
-		_, err = fs.client.Files.Create(file).Media(f.buffer).Do()
-		if err != nil {
-			log.Errorf("can't put: %v", err)
-			return err
-		}
-
-		fs.invalidatePath(f.name)
-		fs.invalidatePath(parent)
+func (f *openReadonlyFile) initContent() error {
+	if f.content != nil {
 		return nil
 	}
 
-	panic("not implemented")
+	resp, err := f.fs.client.Files.Get(f.file.Id).Download()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	content, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	err = resp.Body.Close()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	f.size = int64(len(content))
+	f.content = content
+	f.contentReader = bytes.NewBuffer(content)
+	return nil
 }
-func (f *file) Read(p []byte) (n int, err error) {
-	panic("not implemented")
+
+func (f *openReadonlyFile) Read(p []byte) (n int, err error) {
+	log.Debug("Read ", len(p))
+	err = f.initContent()
+
+	if err != nil {
+		log.Error(err)
+		return 0, err
+	}
+
+	n, err = f.contentReader.Read(p)
+	if err != nil {
+		log.Error(err)
+		return 0, err
+	}
+	f.pos += int64(n)
+	return n, err
 }
-func (f *file) Seek(offset int64, whence int) (int64, error) {
+
+func (f *openReadonlyFile) Seek(offset int64, whence int) (int64, error) {
+	log.Debug("Seek ", offset, whence)
+
+	if whence == 0 {
+		// io.SeekStart
+		if f.content != nil {
+			f.pos = 0
+			f.contentReader = bytes.NewBuffer(f.content)
+			return 0, nil
+		}
+		return f.pos, nil
+	}
+
+	if whence == 2 {
+		// io.SeekEnd
+		err := f.initContent()
+		if err != nil {
+			return 0, err
+		}
+		f.contentReader = &bytes.Buffer{}
+		f.pos = f.size
+		return f.pos, nil
+	}
+
 	panic("not implemented")
 }
 
 func (fs *fileSystem) OpenFile(ctx context.Context, name string, flag int, perm os.FileMode) (webdav.File, error) {
-	return &file{
-		fileSystem: fs,
-		name:       name,
-		flag:       flag,
-		perm:       perm,
-	}, nil
+	log.Debugf("OpenFile %v %v %v", name, flag, perm)
+
+	if flag&os.O_RDWR != 0 {
+		if flag != os.O_RDWR|os.O_CREATE|os.O_TRUNC {
+			panic("not implemented")
+		}
+
+		return &openWritableFile{
+			ctx:        ctx,
+			fileSystem: fs,
+			name:       name,
+			flag:       flag,
+			perm:       perm,
+		}, nil
+	}
+
+	if flag == os.O_RDONLY {
+		file, err := fs.getFile(name, false)
+		if err != nil {
+			return nil, err
+		}
+		return &openReadonlyFile{fs: fs, file: file.file}, nil
+	}
+
+	return nil, fmt.Errorf("unsupported open mode: %v", flag)
 }
 
 func (fs *fileSystem) RemoveAll(ctx context.Context, name string) error {
+	log.Debugf("RemoveAll %v", name)
 	id, err := fs.getFileID(name, false)
 	if err != nil {
 		return err
@@ -204,37 +338,75 @@ func (fs *fileSystem) RemoveAll(ctx context.Context, name string) error {
 
 }
 func (fs *fileSystem) Rename(ctx context.Context, oldName, newName string) error {
+	log.Critical("not implemented")
 	panic("not implemented")
 }
 
 type fileInfo struct {
-	file *drive.File
+	isDir   bool
+	modTime time.Time
+	size    int64
+}
+
+func newFileInfo(file *drive.File) *fileInfo {
+	modTime, err := getModTime(file)
+	if err != nil {
+		log.Error(err)
+		panic(err)
+	}
+
+	return &fileInfo{
+		isDir:   file.MimeType == mimeTypeFolder,
+		modTime: modTime,
+		size:    file.Size,
+	}
+}
+
+func getModTime(file *drive.File) (time.Time, error) {
+	modifiedTime := file.ModifiedTime
+	if modifiedTime == "" {
+		modifiedTime = file.CreatedTime
+	}
+	if modifiedTime == "" {
+		return time.Time{}, nil
+	}
+
+	modTime, err := time.Parse(time.RFC3339, modifiedTime)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return modTime, nil
 }
 
 func (fi *fileInfo) IsDir() bool {
-	return fi.file.MimeType == mimeTypeFolder
+	return fi.isDir
 }
 
 func (fi *fileInfo) Name() string {
+	log.Critical("not implemented")
 	panic("not implemented")
 }
 func (fi *fileInfo) Size() int64 {
-	panic("not implemented")
+	return fi.size
 }
 func (fi *fileInfo) Mode() os.FileMode {
+	log.Critical("not implemented")
 	panic("not implemented")
 }
 func (fi *fileInfo) ModTime() time.Time {
-	panic("not implemented")
+	return fi.modTime
 }
 func (fi *fileInfo) Sys() interface{} {
-	panic("not implemented")
+	return fi
 }
 
 func (fs *fileSystem) Stat(ctx context.Context, name string) (os.FileInfo, error) {
+	log.Debugf("Stat %v", name)
 	f, err := fs.getFile(name, false)
 
 	if err != nil {
+		log.Error(err)
 		return nil, err
 	}
 
@@ -243,7 +415,7 @@ func (fs *fileSystem) Stat(ctx context.Context, name string) (os.FileInfo, error
 		return nil, os.ErrNotExist
 	}
 
-	return &fileInfo{file: f.file}, nil
+	return newFileInfo(f.file), nil
 	// files := []*fileAndPath{f}
 
 	// query := fmt.Sprintf("'%s' in parents", f.file.Id)
@@ -267,43 +439,6 @@ func (fs *fileSystem) Stat(ctx context.Context, name string) (os.FileInfo, error
 
 /*
 
-// MkDir creates a directory
-func (fs *FileSystem) MkDir(p string) webdav.MkColStatusCode {
-
-}
-
-// Delete deletes the file
-func (fs *FileSystem) Delete(p string) webdav.DeleteStatusCode {
-}
-
-// Put uploads the file.
-func (fs *FileSystem) Put(p string, bytes io.ReadCloser) webdav.StatusCode {
-	defer bytes.Close()
-	parent := path.Dir(p)
-	base := path.Base(p)
-
-	parentID := fs.getFileID(parent, true)
-
-	if parentID == "" {
-		log.Errorf("ERROR: Parent not found")
-		return webdav.StatusCode(http.StatusConflict) // 409
-	}
-
-	f := &drive.File{
-		Name:    base,
-		Parents: []string{parentID},
-	}
-
-	_, err := fs.client.Files.Create(f).Media(bytes).Do()
-	if err != nil {
-		log.Errorf("can't put: %v", err)
-		return webdav.StatusCode(500)
-	}
-
-	fs.invalidatePath(p)
-	fs.invalidatePath(parent)
-	return webdav.StatusCode(201)
-}
 
 // Get downloads the file.
 func (fs *FileSystem) Get(p string) (webdav.StatusCode, io.ReadCloser, int64) {
@@ -563,7 +698,7 @@ func (fs *fileSystem) getFile(p string, onlyFolder bool) (*fileAndPath, error) {
 	key := cacheKeyFile + p
 
 	if lookup, found := fs.cache.Get(key); found {
-		log.Debug("Reusing cached file: ", p)
+		log.Trace("Reusing cached file: ", p)
 		result := lookup.(*fileLookupResult)
 		return result.fp, result.err
 	}
@@ -584,7 +719,7 @@ func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) 
 	if p == "" {
 		f, err := fs.client.Files.Get("root").Do()
 		if err != nil {
-			log.Errorf("E1: %v", err)
+			log.Error(err)
 			return nil, err
 		}
 		return &fileAndPath{file: f, path: "/"}, nil
@@ -595,7 +730,7 @@ func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) 
 
 	parentID, err := fs.getFileID(parent, true)
 	if err != nil {
-		log.Errorf("E2: %v", err)
+		log.Errorf("can't locate parent %v error: %v", parent, err)
 		return nil, err
 	}
 
@@ -605,12 +740,12 @@ func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) 
 		query += " and mimeType='" + mimeTypeFolder + "'"
 	}
 	q.Q(query)
-	log.Errorf("Query: %v", q)
+	log.Tracef("Query: %v", q)
 
 	r, err := q.Do()
 
 	if err != nil {
-		log.Errorf("E4: %v", err)
+		log.Error(err)
 		return nil, err
 	}
 
@@ -621,7 +756,6 @@ func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) 
 
 		return &fileAndPath{file: file, path: p}, nil
 	}
-	log.Errorf("E5: %v", err)
 
 	return nil, os.ErrNotExist
 }
