@@ -2,6 +2,7 @@ package gdrive
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,6 +12,10 @@ import (
 	"golang.org/x/net/context"
 
 	"golang.org/x/oauth2"
+)
+
+var (
+	tokenFileFlag = flag.String("token-file", "", "OAuth token cache file. ~/.gdrive_token by default.")
 )
 
 func newHTTPClient(ctx context.Context, clientID string, clientSecret string) *http.Client {

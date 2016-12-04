@@ -2,7 +2,6 @@ package gdrive
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -27,14 +26,8 @@ type fileSystem struct {
 	cache        *gocache.Cache
 }
 
-var (
-	tokenFileFlag = flag.String("token-file", "", "OAuth token cache file. ~/.gdrive_token by default.")
-)
-
 const (
 	mimeTypeFolder = "application/vnd.google-apps.folder"
-	cacheKeyAbout  = "global:about"
-	cacheKeyFile   = "file:"
 )
 
 type fileAndPath struct {
@@ -66,6 +59,7 @@ func NewLS() webdav.LockSystem {
 
 func (fs *fileSystem) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
 	log.Debugf("Mkdir %v %v", name, perm)
+	name = normalizePath(name)
 	pID, err := fs.getFileID(name, false)
 	if err != nil && err != os.ErrNotExist {
 		log.Error(err)
@@ -76,7 +70,6 @@ func (fs *fileSystem) Mkdir(ctx context.Context, name string, perm os.FileMode) 
 		return os.ErrExist
 	}
 
-	name = strings.TrimRight(name, "/")
 	parent := path.Dir(name)
 	dir := path.Base(name)
 
@@ -293,6 +286,7 @@ func (f *openReadonlyFile) Seek(offset int64, whence int) (int64, error) {
 
 func (fs *fileSystem) OpenFile(ctx context.Context, name string, flag int, perm os.FileMode) (webdav.File, error) {
 	log.Debugf("OpenFile %v %v %v", name, flag, perm)
+	name = normalizePath(name)
 
 	if flag&os.O_RDWR != 0 {
 		if flag != os.O_RDWR|os.O_CREATE|os.O_TRUNC {
@@ -321,6 +315,7 @@ func (fs *fileSystem) OpenFile(ctx context.Context, name string, flag int, perm 
 
 func (fs *fileSystem) RemoveAll(ctx context.Context, name string) error {
 	log.Debugf("RemoveAll %v", name)
+	name = normalizePath(name)
 	id, err := fs.getFileID(name, false)
 	if err != nil {
 		return err
@@ -685,36 +680,9 @@ func (fs *fileSystem) getFileID(p string, onlyFolder bool) (string, error) {
 	return f.file.Id, nil
 }
 
-func (fs *fileSystem) invalidatePath(p string) {
-	fs.cache.Delete(cacheKeyFile + p)
-}
-
-type fileLookupResult struct {
-	fp  *fileAndPath
-	err error
-}
-
-func (fs *fileSystem) getFile(p string, onlyFolder bool) (*fileAndPath, error) {
-	key := cacheKeyFile + p
-
-	if lookup, found := fs.cache.Get(key); found {
-		log.Trace("Reusing cached file: ", p)
-		result := lookup.(*fileLookupResult)
-		return result.fp, result.err
-	}
-
-	fp, err := fs.getFile0(p, onlyFolder)
-	lookup := &fileLookupResult{fp: fp, err: err}
-	if err != nil {
-		fs.cache.Set(key, lookup, time.Minute)
-	}
-	return lookup.fp, lookup.err
-}
-
 func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) {
-	if strings.HasSuffix(p, "/") {
-		p = strings.TrimRight(p, "/")
-	}
+	log.Tracef("getFile0 %v %v", p, onlyFolder)
+	p = normalizePath(p)
 
 	if p == "" {
 		f, err := fs.client.Files.Get("root").Do()
@@ -762,4 +730,8 @@ func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) 
 
 func ignoreFile(f *drive.File) bool {
 	return f.Trashed
+}
+
+func normalizePath(p string) string {
+	return strings.TrimRight(p, "/")
 }
