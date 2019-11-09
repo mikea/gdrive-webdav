@@ -13,8 +13,8 @@ import (
 
 	"io"
 
-	log "github.com/cihub/seelog"
 	gocache "github.com/pmylund/go-cache"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"golang.org/x/net/webdav"
 	"google.golang.org/api/drive/v3"
@@ -174,13 +174,15 @@ func (f *openWritableFile) Close() error {
 	log.Debug("Close succesfull ", f.name)
 	return nil
 }
+
 func (f *openWritableFile) Read(p []byte) (n int, err error) {
-	log.Critical("not implemented")
-	panic("not implemented")
+	log.Panic("not implemented")
+	return -1, nil
 }
+
 func (f *openWritableFile) Seek(offset int64, whence int) (int64, error) {
-	log.Critical("not implemented")
-	panic("not implemented")
+	log.Panic("not implemented")
+	return -1, nil
 }
 
 type openReadonlyFile struct {
@@ -193,12 +195,13 @@ type openReadonlyFile struct {
 }
 
 func (f *openReadonlyFile) Write(p []byte) (int, error) {
-	log.Critical("not implemented")
-	panic("not implemented")
+	log.Panic("not implemented")
+	return -1, nil
 }
 
 func (f *openReadonlyFile) Readdir(count int) ([]os.FileInfo, error) {
-	panic("not supported")
+	log.Panic("not supported")
+	return nil, nil
 }
 
 func (f *openReadonlyFile) Stat() (os.FileInfo, error) {
@@ -333,8 +336,8 @@ func (fs *fileSystem) RemoveAll(ctx context.Context, name string) error {
 
 }
 func (fs *fileSystem) Rename(ctx context.Context, oldName, newName string) error {
-	log.Critical("not implemented")
-	panic("not implemented")
+	log.Panic("not implemented")
+	return nil
 }
 
 type fileInfo struct {
@@ -379,15 +382,15 @@ func (fi *fileInfo) IsDir() bool {
 }
 
 func (fi *fileInfo) Name() string {
-	log.Critical("not implemented")
-	panic("not implemented")
+	log.Panic("not implemented")
+	return ""
 }
 func (fi *fileInfo) Size() int64 {
 	return fi.size
 }
 func (fi *fileInfo) Mode() os.FileMode {
-	log.Critical("not implemented")
-	panic("not implemented")
+	log.Panic("not implemented")
+	return 0
 }
 func (fi *fileInfo) ModTime() time.Time {
 	return fi.modTime

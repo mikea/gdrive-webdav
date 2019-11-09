@@ -3,7 +3,7 @@ package gdrive
 import (
 	"time"
 
-	log "github.com/cihub/seelog"
+	log "github.com/sirupsen/logrus"
 )
 
 const (

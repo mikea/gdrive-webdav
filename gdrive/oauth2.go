@@ -8,9 +8,8 @@ import (
 	"os"
 	"os/user"
 
-	log "github.com/cihub/seelog"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
-
 	"golang.org/x/oauth2"
 )
 
@@ -81,12 +80,12 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 
 	var code string
 	if _, err := fmt.Scan(&code); err != nil {
-		log.Criticalf("Unable to read authorization code %v", err)
+		log.Panicf("Unable to read authorization code %v", err)
 	}
 
 	tok, err := config.Exchange(oauth2.NoContext, code)
 	if err != nil {
-		log.Criticalf("Unable to retrieve token from web %v", err)
+		log.Panicf("Unable to retrieve token from web %v", err)
 	}
 	return tok
 }

@@ -8,8 +8,8 @@ import (
 	"os"
 	"runtime"
 
-	log "github.com/cihub/seelog"
 	"github.com/mikea/gdrive-webdav/gdrive"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"golang.org/x/net/webdav"
 )
@@ -21,13 +21,6 @@ var (
 )
 
 func main() {
-	defer log.Flush()
-	err := initLogging()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Can't initialize logging: %v", err)
-		os.Exit(-1)
-	}
-
 	flag.Parse()
 
 	if *clientID == "" {
@@ -51,41 +44,11 @@ func main() {
 
 	log.Info("Listening on: ", *addr)
 
-	err = http.ListenAndServe(*addr, nil)
+	err := http.ListenAndServe(*addr, nil)
 	if err != nil {
 		log.Errorf("Error starting HTTP server: %v", err)
 		os.Exit(-1)
 	}
-}
-
-func initLogging() error {
-	config := `
-	<seelog type="sync" minlevel="debug">
-	<outputs>
-		<filter levels="error,critical">
-			<console formatid="error"/>
-		</filter>
-		<filter levels="info,warn">
-			<console formatid="info"/>
-		</filter>
-		<filter levels="trace,debug">
-			<console formatid="default"/>
-		</filter>
-	</outputs>
-	<formats>
-		<format id="default" format="%Date %Time %Lev %File:%Line %Msg%n"/>
-		<format id="info" format="%Date %Time %EscM(32)%Lev%EscM(39) %File:%Line %Msg%n%EscM(0)"/>
-  	<format id="error" format="%Date %Time %EscM(31)%Lev%EscM(39) %File:%Line %Msg%n%EscM(0)"/>
-	</formats>
-</seelog>
-`
-
-	logger, err := log.LoggerFromConfigAsString(config)
-	if err != nil {
-		return err
-	}
-	log.ReplaceLogger(logger)
-	return nil
 }
 
 func gcHandler(w http.ResponseWriter, r *http.Request) {
