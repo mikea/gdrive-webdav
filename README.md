@@ -2,6 +2,10 @@
 
 Simple Google Drive => WebDAV bridge.
 
+## Building From Source
+
+    go build -i ./main.go
+
 ## Usage
 
 * Obtain OAuth keys and enable GDrive API (https://developers.google.com/drive/v3/web/quickstart/go)

@@ -2,3 +2,4 @@ bin/
 pkg/
 .*token
 *.log
+main
