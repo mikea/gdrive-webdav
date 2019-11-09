@@ -1,6 +1,6 @@
 # gdrive-webdav
 
-![https://github.com/mikea/gdrive-webdav/actions?query=workflow%3AGo](https://github.com/mikea/gdrive-webdav/workflows/Go/badge.svg)
+![![Go Workflow](https://github.com/mikea/gdrive-webdav/actions?query=workflow%3AGo)](https://github.com/mikea/gdrive-webdav/workflows/Go/badge.svg)
 
 Simple Google Drive => WebDAV bridge.
 
