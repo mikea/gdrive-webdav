@@ -26,7 +26,8 @@ jobs:
     - name: Test
       run: go test -v .
 
-    - name: Lint
-      uses: mikea/action-golangci-lint@master
-      with:
-        target: '.'
+    # doesn't work
+    # - name: Lint
+    #   uses: mikea/action-golangci-lint@master
+    #   with:
+    #     target: '.'
