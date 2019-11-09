@@ -1,15 +1,13 @@
+# gdrive-webdav
+
 Simple Google Drive => WebDAV bridge.
 
-Usage
-==
+## Usage
 
 * Obtain OAuth keys and enable GDrive API (https://developers.google.com/drive/v3/web/quickstart/go)
 
+## Status
 
-
-    
-Status
-==
 Alpha quality. I trust it my files.
 
 * Linux Nautilus: Readable/Writable

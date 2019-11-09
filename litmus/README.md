@@ -1,4 +1,4 @@
-Docker image for litmus webdav test.
+# Docker image for litmus webdav test
 
 To build and to run:
 
