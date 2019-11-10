@@ -108,8 +108,8 @@ func (fs *fileSystem) RemoveAll(ctx context.Context, name string) error {
 	fs.invalidatePath(name)
 	fs.invalidatePath(path.Dir(name))
 	return nil
-
 }
+
 func (fs *fileSystem) Rename(ctx context.Context, oldName, newName string) error {
 	log.Panic("not implemented")
 	return nil
