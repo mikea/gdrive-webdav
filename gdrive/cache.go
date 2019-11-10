@@ -7,8 +7,7 @@ import (
 )
 
 const (
-	cacheKeyAbout = "global:about"
-	cacheKeyFile  = "file:"
+	cacheKeyFile = "file:"
 )
 
 func (fs *fileSystem) invalidatePath(p string) {

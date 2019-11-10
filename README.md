@@ -6,7 +6,7 @@ Simple Google Drive => WebDAV bridge.
 
 ## Building From Source
 
-    go build -i ./main.go
+    go build -i ./...
 
 ## Usage
 

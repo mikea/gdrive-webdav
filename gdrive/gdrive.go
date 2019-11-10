@@ -18,6 +18,7 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/net/webdav"
 	"google.golang.org/api/drive/v3"
+	"google.golang.org/api/option"
 )
 
 type fileSystem struct {
@@ -38,7 +39,7 @@ type fileAndPath struct {
 // NewFS creates new gdrive file system.
 func NewFS(ctx context.Context, clientID string, clientSecret string) webdav.FileSystem {
 	httpClient := newHTTPClient(ctx, clientID, clientSecret)
-	client, err := drive.New(httpClient)
+	client, err := drive.NewService(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
 		log.Errorf("An error occurred creating Drive client: %v\n", err)
 		panic(-3)

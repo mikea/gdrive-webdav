@@ -31,7 +31,7 @@ func newHTTPClient(ctx context.Context, clientID string, clientSecret string) *h
 
 	tok, err := getTokenFromFile()
 	if err != nil {
-		tok = getTokenFromWeb(config)
+		tok = getTokenFromWeb(ctx, config)
 		err = saveToken(tok)
 		if err != nil {
 			log.Errorf("An error occurred saving token file: %v\n", err)
@@ -73,7 +73,7 @@ func getTokenFromFile() (*oauth2.Token, error) {
 	return t, err
 }
 
-func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
+func getTokenFromWeb(ctx context.Context, config *oauth2.Config) *oauth2.Token {
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	fmt.Printf("Go to the following link in your browser then type the "+
 		"authorization code: \n%v\n", authURL)
@@ -83,7 +83,7 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 		log.Panicf("Unable to read authorization code %v", err)
 	}
 
-	tok, err := config.Exchange(oauth2.NoContext, code)
+	tok, err := config.Exchange(ctx, code)
 	if err != nil {
 		log.Panicf("Unable to retrieve token from web %v", err)
 	}
