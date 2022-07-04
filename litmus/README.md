@@ -1,7 +1,13 @@
 # Docker image for litmus webdav test
 
-To build and to run:
+## Build
 
 ```bash
-docker build -t litmus litmus && docker run -ti litmus http://localhost:1234/
+docker build -t litmus litmus
+```
+
+## Run
+
+```bash
+docker run -ti litmus http://localhost:1234/
 ```

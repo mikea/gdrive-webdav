@@ -4,3 +4,4 @@ pkg/
 *.log
 main
 .vscode
+gdrive-webdav
