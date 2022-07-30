@@ -18,7 +18,7 @@ const (
 )
 
 var (
-	logHttp = flag.Bool("log-http", false, "Log http requests")
+	logHTTP = flag.Bool("log-http", false, "Log http requests")
 )
 
 type fileAndPath struct {
@@ -36,7 +36,7 @@ func NewFS(ctx context.Context, clientID string, clientSecret string) webdav.Fil
 	}
 
 	roundTripper := httpClient.Transport
-	if *logHttp {
+	if *logHTTP {
 		roundTripper = &loggingTransport{roundTripper}
 	}
 

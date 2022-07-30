@@ -35,4 +35,13 @@ Use nix to set up development environment:
 nix-shell
 go test ./...
 go build
+golangci-lint run
+```
+
+## Testing
+
+You can use litmus tests to test the implementation:
+
+```bash
+docker build -t litmus litmus && docker run -ti litmus http://localhost:1234/
 ```
