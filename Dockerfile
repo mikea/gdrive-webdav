@@ -1,7 +1,7 @@
 # Build
 FROM golang:latest
 COPY . /go/src/github.com/mikea/gdrive-webdav/
-RUN go get -v github.com/mikea/gdrive-webdav
+RUN cd /go/src/github.com/mikea/gdrive-webdav/ && go install .
 
 
 # Run
