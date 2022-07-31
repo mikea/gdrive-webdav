@@ -65,14 +65,46 @@ Alpha quality. I trust it my files.
     ...................... pass (with 1 warning)
  6. copy_cleanup.......... pass
  7. copy_coll............. pass
- 8. copy_shallow.......... WARNING: Could not clean up cdest
-    ...................... pass (with 1 warning)
+ 8. copy_shallow.......... pass
  9. move.................. pass
-10. move_coll............. FAIL (MOVE-on-existing-coll should fail)
+10. move_coll............. pass
 11. move_cleanup.......... pass
 12. finish................ pass
-<- summary for `copymove': of 13 tests run: 12 passed, 1 failed. 92.3%
--> 2 warnings were issued.
+<- summary for `copymove': of 13 tests run: 13 passed, 0 failed. 100.0%
+-> 1 warning was issued.
+-> running `props':
+ 0. init.................. pass
+ 1. begin................. pass
+ 2. propfind_invalid...... pass
+ 3. propfind_invalid2..... FAIL (PROPFIND with invalid namespace declaration in body (see FAQ) got 207 response not 400)
+ 4. propfind_d0........... pass
+ 5. propinit.............. pass
+ 6. propset............... FAIL (PROPPATCH on `/litmus/prop': Could not read status line: connection was closed by server)
+ 7. propget............... SKIPPED
+ 8. propextended.......... pass
+ 9. propmove.............. SKIPPED
+10. propget............... SKIPPED
+11. propdeletes........... SKIPPED
+12. propget............... SKIPPED
+13. propreplace........... SKIPPED
+14. propget............... SKIPPED
+15. propnullns............ SKIPPED
+16. propget............... SKIPPED
+17. prophighunicode....... SKIPPED
+18. propget............... SKIPPED
+19. propremoveset......... SKIPPED
+20. propget............... SKIPPED
+21. propsetremove......... SKIPPED
+22. propget............... SKIPPED
+23. propvalnspace......... SKIPPED
+24. propwformed........... pass
+25. propinit.............. pass
+26. propmanyns............ FAIL (PROPPATCH on `/litmus/prop': Could not read status line: connection was closed by server)
+27. propget............... FAIL (No value given for property {http://example.com/kappa}somename)
+28. propcleanup........... pass
+29. finish................ pass
+-> 16 tests were skipped.
+<- summary for `props': of 14 tests run: 10 passed, 4 failed. 71.4%
 ```
 
 

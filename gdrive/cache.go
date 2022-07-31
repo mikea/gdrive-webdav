@@ -1,6 +1,7 @@
 package gdrive
 
 import (
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -8,6 +9,7 @@ import (
 
 const (
 	cacheKeyFile = "file:"
+	cachePeriod  = time.Minute
 )
 
 func (fs *fileSystem) invalidatePath(p string) {
@@ -22,6 +24,7 @@ type fileLookupResult struct {
 
 func (fs *fileSystem) getFile(p string, onlyFolder bool) (*fileAndPath, error) {
 	log.Tracef("getFile %v %v", p, onlyFolder)
+	p = strings.TrimSuffix(p, "/")
 	key := cacheKeyFile + p
 
 	if lookup, found := fs.cache.Get(key); found {
@@ -33,7 +36,7 @@ func (fs *fileSystem) getFile(p string, onlyFolder bool) (*fileAndPath, error) {
 	fp, err := fs.getFile0(p, onlyFolder)
 	lookup := &fileLookupResult{fp: fp, err: err}
 	if err != nil {
-		fs.cache.Set(key, lookup, time.Minute)
+		fs.cache.Set(key, lookup, cachePeriod)
 	}
 	return lookup.fp, lookup.err
 }
