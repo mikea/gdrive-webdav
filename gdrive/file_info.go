@@ -37,18 +37,22 @@ func (fi *fileInfo) IsDir() bool {
 func (fi *fileInfo) Name() string {
 	return fi.name
 }
+
 func (fi *fileInfo) Size() int64 {
 	return fi.size
 }
+
 func (fi *fileInfo) Mode() os.FileMode {
 	if fi.isDir {
 		return os.ModeDir | 0o777
 	}
 	return 0o777
 }
+
 func (fi *fileInfo) ModTime() time.Time {
 	return fi.modTime
 }
+
 func (fi *fileInfo) Sys() interface{} {
 	return fi
 }

@@ -2,6 +2,7 @@ package gdrive
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -20,8 +21,7 @@ type openReadonlyFile struct {
 }
 
 func (f *openReadonlyFile) Write(p []byte) (int, error) {
-	log.Panic("not implemented")
-	return -1, nil
+	return -1, errors.New("can't write to readonly file")
 }
 
 func (f *openReadonlyFile) Readdir(count int) ([]os.FileInfo, error) {

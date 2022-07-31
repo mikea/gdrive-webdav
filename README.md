@@ -18,6 +18,11 @@ Simple Google Drive => WebDAV bridge.
 
 * Connect to WebDAV network drive using http://localhost:8765/
 
+Supported flags:
+
+* `--addr` service address, `:8765` by default
+* `--debug`, `--trace` print more information
+
 ## Status
 
 Alpha quality. I trust it my files.
@@ -97,3 +102,5 @@ docker run -ti --network=host --entrypoint=/usr/local/libexec/litmus/copymove li
 ```
 
 Evailable tests: basic, copymove, http, locks, props.
+
+To get test log add `-v $(pwd)/debug.log:/usr/local/share/litmus/debug.log`.

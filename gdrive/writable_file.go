@@ -2,6 +2,7 @@ package gdrive
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path"
 
@@ -41,7 +42,7 @@ func (f *openWritableFile) Close() error {
 	log.Debugf("Close %v", f.name)
 	fs := f.fileSystem
 	fileID, err := fs.getFileID(f.name, false)
-	if err != nil && err != os.ErrNotExist {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		log.Error(err)
 		return err
 	}
@@ -86,11 +87,11 @@ func (f *openWritableFile) Close() error {
 }
 
 func (f *openWritableFile) Read(p []byte) (n int, err error) {
-	log.Panic("not implemented")
+	log.Panic("not implemented", p)
 	return -1, nil
 }
 
 func (f *openWritableFile) Seek(offset int64, whence int) (int64, error) {
-	log.Panic("not implemented")
+	log.Panic("not implemented", offset, whence)
 	return -1, nil
 }

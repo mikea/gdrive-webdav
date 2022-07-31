@@ -1,10 +1,12 @@
 package gdrive
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"path"
+	"strings"
 
 	gocache "github.com/pmylund/go-cache"
 	log "github.com/sirupsen/logrus"
@@ -23,8 +25,7 @@ func (fs *fileSystem) Mkdir(ctx context.Context, name string, perm os.FileMode) 
 	log.Debugf("Mkdir %v %v", name, perm)
 	name = normalizePath(name)
 	pID, err := fs.getFileID(name, false)
-	if err != nil && err != os.ErrNotExist {
-		log.Error(err)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	if err == nil {
@@ -111,7 +112,37 @@ func (fs *fileSystem) RemoveAll(ctx context.Context, name string) error {
 }
 
 func (fs *fileSystem) Rename(ctx context.Context, oldName, newName string) error {
-	log.Panic("not implemented")
+	log.Debugf("Rename %v -> %v", oldName, newName)
+
+	newFile, err := fs.getFile(newName, false)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if newFile != nil {
+		log.Errorf("file already exists %v", newName)
+		return os.ErrExist
+	}
+
+	oldName = strings.TrimSuffix(oldName, "/")
+	newName = strings.TrimSuffix(newName, "/")
+
+	if path.Dir(oldName) != path.Dir(newName) {
+		log.Panicf("dir change not implemented %v -> %v", oldName, newName)
+	}
+	fileAndPath, err := fs.getFile(oldName, false)
+	if err != nil {
+		return err
+	}
+
+	file := drive.File{}
+	file.Name = path.Base(newName)
+	u := fs.client.Files.Update(fileAndPath.file.Id, &file)
+	_, err = u.Do()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
 	return nil
 }
 

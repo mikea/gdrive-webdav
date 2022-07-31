@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"runtime"
 
@@ -18,10 +17,20 @@ var (
 	addr         = flag.String("addr", ":8765", "WebDAV service address")
 	clientID     = flag.String("client-id", "", "OAuth client id")
 	clientSecret = flag.String("client-secret", "", "OAuth client secret")
+	debug        = flag.Bool("debug", false, "print debug info")
+	trace        = flag.Bool("trace", false, "print trace info")
 )
 
 func main() {
 	flag.Parse()
+
+	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	}
+	if *trace {
+		log.SetLevel(log.TraceLevel)
+	}
 
 	if *clientID == "" {
 		fmt.Fprintln(os.Stderr, "--client-id is not specified. See https://developers.google.com/drive/quickstart-go for step-by-step guide.")
