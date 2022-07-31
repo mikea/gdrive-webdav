@@ -22,6 +22,7 @@ type openWritableFile struct {
 }
 
 func (f *openWritableFile) Write(p []byte) (int, error) {
+	log.Debugf("Write %v %v", f.name, len(p))
 	n, err := f.buffer.Write(p)
 	f.size += int64(n)
 	return n, err
@@ -82,7 +83,7 @@ func (f *openWritableFile) Close() error {
 	fs.invalidatePath(f.name)
 	fs.invalidatePath(parent)
 
-	log.Debug("Close succesfull ", f.name)
+	log.Trace("Close succesfull ", f.name)
 	return nil
 }
 

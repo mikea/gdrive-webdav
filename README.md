@@ -34,7 +34,7 @@ Alpha quality. I trust it my files.
 * Win8: Cannot connect to http://localhost:8765/ , using WIN8 network share builtin webdav support
   * Win8 MiniRedirector Client does not seem to send correct PROPFIND. Missing xml on request body 0 length.
 
-[Litmus](http://webdav.org/neon/litmus/) test results as of Jul 30 2022:
+[Litmus](http://webdav.org/neon/litmus/) test results as of Jul 2022:
 
 ```text
 -> running `basic':
@@ -67,11 +67,11 @@ Alpha quality. I trust it my files.
  7. copy_coll............. pass
  8. copy_shallow.......... WARNING: Could not clean up cdest
     ...................... pass (with 1 warning)
- 9. move.................. FAIL (MOVE `/litmus/move' to `/litmus/movedest': Could not read status line: connection was closed by server)
-10. move_coll............. FAIL (collection MOVE `/litmus/mvsrc/' to `/litmus/mvdest/': Could not read status line: connection was closed by server)
+ 9. move.................. pass
+10. move_coll............. FAIL (MOVE-on-existing-coll should fail)
 11. move_cleanup.......... pass
 12. finish................ pass
-<- summary for `copymove': of 13 tests run: 11 passed, 2 failed. 84.6%
+<- summary for `copymove': of 13 tests run: 12 passed, 1 failed. 92.3%
 -> 2 warnings were issued.
 ```
 

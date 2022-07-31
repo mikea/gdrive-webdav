@@ -114,13 +114,13 @@ func (fs *fileSystem) RemoveAll(ctx context.Context, name string) error {
 func (fs *fileSystem) Rename(ctx context.Context, oldName, newName string) error {
 	log.Debugf("Rename %v -> %v", oldName, newName)
 
-	newFile, err := fs.getFile(newName, false)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	if newFile != nil {
+	newFileAndPath, err := fs.getFile(newName, false)
+	if newFileAndPath != nil {
 		log.Errorf("file already exists %v", newName)
 		return os.ErrExist
+	}
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
 	}
 
 	oldName = strings.TrimSuffix(oldName, "/")
@@ -136,13 +136,15 @@ func (fs *fileSystem) Rename(ctx context.Context, oldName, newName string) error
 
 	file := drive.File{}
 	file.Name = path.Base(newName)
+	log.Tracef("Files.Update %v %v", fileAndPath.path, file)
 	u := fs.client.Files.Update(fileAndPath.file.Id, &file)
 	_, err = u.Do()
 	if err != nil {
 		log.Error(err)
 		return err
 	}
-
+	fs.invalidatePath(newName)
+	fs.invalidatePath(oldName)
 	return nil
 }
 
@@ -224,6 +226,7 @@ func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) 
 func (fs *fileSystem) readdir(file *drive.File) ([]os.FileInfo, error) {
 	q := fs.client.Files.List()
 	query := fmt.Sprintf("'%s' in parents", file.Id)
+	log.Tracef("Query: %v", q)
 	q.Q(query)
 
 	r, err := q.Do()

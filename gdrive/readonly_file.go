@@ -67,7 +67,7 @@ func (f *openReadonlyFile) initContent() error {
 }
 
 func (f *openReadonlyFile) Read(p []byte) (n int, err error) {
-	log.Debug("Read ", len(p))
+	log.Debugf("Read %v %v", f.file.Name, len(p))
 	err = f.initContent()
 
 	if err != nil {
