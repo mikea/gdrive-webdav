@@ -54,20 +54,18 @@ Alpha quality. I trust it my files.
  0. init.................. pass
  1. begin................. pass
  2. copy_init............. pass
- 3. copy_simple........... FAIL (simple resource COPY:
-Could not read status line: connection was closed by server)
- 4. copy_overwrite........ FAIL (COPY-on-existing with 'Overwrite: F' MUST fail with 412 (RFC4918:10.6):
-Could not read status line: connection was closed by server)
- 5. copy_nodestcoll....... WARNING: COPY to non-existant collection '/litmus/nonesuch' gave 'Could not read status line: connection was closed by server' not 409 (RFC2518:S8.8.5)
+ 3. copy_simple........... pass
+ 4. copy_overwrite........ pass
+ 5. copy_nodestcoll....... WARNING: COPY to non-existant collection '/litmus/nonesuch' gave '500 Internal Server Error' not 409 (RFC2518:S8.8.5)
     ...................... pass (with 1 warning)
  6. copy_cleanup.......... pass
- 7. copy_coll............. FAIL (collection COPY `/litmus/ccsrc/' to `/litmus/ccdest/': Could not read status line: connection was closed by server)
+ 7. copy_coll............. FAIL (collection COPY `/litmus/ccsrc/' to `/litmus/ccdest/': 403 Forbidden)
  8. copy_shallow.......... FAIL (MKCOL on `/litmus/ccsrc/': 405 Method Not Allowed)
  9. move.................. FAIL (MOVE `/litmus/move' to `/litmus/movedest': Could not read status line: connection was closed by server)
-10. move_coll............. FAIL (collection COPY `/litmus/mvsrc/' to `/litmus/mvdest2/', depth infinity: Could not read status line: connection was closed by server)
+10. move_coll............. FAIL (collection COPY `/litmus/mvsrc/' to `/litmus/mvdest2/', depth infinity: 403 Forbidden)
 11. move_cleanup.......... pass
 12. finish................ pass
-<- summary for `copymove': of 13 tests run: 7 passed, 6 failed. 53.8%
+<- summary for `copymove': of 13 tests run: 9 passed, 4 failed. 69.2%
 -> 1 warning was issued.
 ```
 

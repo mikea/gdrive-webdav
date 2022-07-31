@@ -40,8 +40,10 @@ func (fi *fileInfo) Size() int64 {
 	return fi.size
 }
 func (fi *fileInfo) Mode() os.FileMode {
-	log.Panic("not implemented")
-	return 0
+	if fi.isDir {
+		return os.ModeDir | 0o777
+	}
+	return 0o777
 }
 func (fi *fileInfo) ModTime() time.Time {
 	return fi.modTime
