@@ -9,6 +9,7 @@ import (
 )
 
 type fileInfo struct {
+	name    string
 	isDir   bool
 	modTime time.Time
 	size    int64
@@ -22,6 +23,7 @@ func newFileInfo(file *drive.File) *fileInfo {
 	}
 
 	return &fileInfo{
+		name:    file.Name,
 		isDir:   file.MimeType == mimeTypeFolder,
 		modTime: modTime,
 		size:    file.Size,
@@ -33,8 +35,7 @@ func (fi *fileInfo) IsDir() bool {
 }
 
 func (fi *fileInfo) Name() string {
-	log.Panic("not implemented")
-	return ""
+	return fi.name
 }
 func (fi *fileInfo) Size() int64 {
 	return fi.size

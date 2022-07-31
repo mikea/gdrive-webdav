@@ -25,8 +25,7 @@ func (f *openReadonlyFile) Write(p []byte) (int, error) {
 }
 
 func (f *openReadonlyFile) Readdir(count int) ([]os.FileInfo, error) {
-	log.Panic("not supported")
-	return nil, nil
+	return f.fs.readdir(f.file)
 }
 
 func (f *openReadonlyFile) Stat() (os.FileInfo, error) {

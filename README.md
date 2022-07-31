@@ -59,14 +59,15 @@ Alpha quality. I trust it my files.
  5. copy_nodestcoll....... WARNING: COPY to non-existant collection '/litmus/nonesuch' gave '500 Internal Server Error' not 409 (RFC2518:S8.8.5)
     ...................... pass (with 1 warning)
  6. copy_cleanup.......... pass
- 7. copy_coll............. FAIL (collection COPY `/litmus/ccsrc/' to `/litmus/ccdest/': 403 Forbidden)
- 8. copy_shallow.......... FAIL (MKCOL on `/litmus/ccsrc/': 405 Method Not Allowed)
+ 7. copy_coll............. pass
+ 8. copy_shallow.......... WARNING: Could not clean up cdest
+    ...................... pass (with 1 warning)
  9. move.................. FAIL (MOVE `/litmus/move' to `/litmus/movedest': Could not read status line: connection was closed by server)
-10. move_coll............. FAIL (collection COPY `/litmus/mvsrc/' to `/litmus/mvdest2/', depth infinity: 403 Forbidden)
+10. move_coll............. FAIL (collection MOVE `/litmus/mvsrc/' to `/litmus/mvdest/': Could not read status line: connection was closed by server)
 11. move_cleanup.......... pass
 12. finish................ pass
-<- summary for `copymove': of 13 tests run: 9 passed, 4 failed. 69.2%
--> 1 warning was issued.
+<- summary for `copymove': of 13 tests run: 11 passed, 2 failed. 84.6%
+-> 2 warnings were issued.
 ```
 
 

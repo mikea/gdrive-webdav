@@ -189,3 +189,21 @@ func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) 
 
 	return nil, os.ErrNotExist
 }
+
+func (fs *fileSystem) readdir(file *drive.File) ([]os.FileInfo, error) {
+	q := fs.client.Files.List()
+	query := fmt.Sprintf("'%s' in parents", file.Id)
+	q.Q(query)
+
+	r, err := q.Do()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	files := make([]os.FileInfo, len(r.Files))
+	for i := range files {
+		files[i] = newFileInfo(r.Files[i])
+	}
+	return files, nil
+}
