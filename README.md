@@ -91,3 +91,10 @@ You can use litmus tests to test the implementation:
 docker build -t litmus litmus && docker run -ti --network=host litmus http://localhost:8765/
 ```
 
+Running single group of tests:
+
+```bash
+docker run -ti --network=host --entrypoint=/usr/local/libexec/litmus/copymove litmus http://localhost:8765/
+```
+
+Evailable tests: basic, copymove, http, locks, props.

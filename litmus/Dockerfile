@@ -12,4 +12,5 @@ RUN mkdir /tmp/litmus && \
     make install && \
     rm -rf /tmp/litmus
 
+WORKDIR /usr/local/share/litmus/
 ENTRYPOINT ["/usr/local/bin/litmus"]
