@@ -160,6 +160,9 @@ func appPropertiesToList(m map[string]string) []webdav.Propstat {
 			log.Panicf("unexpected properties: %v %v", m, err)
 		}
 		sep := strings.Index(k, "!")
+		if sep < 0 {
+			log.Panicf("unexpected key: %v", k)
+		}
 		ns := k[:sep]
 		n := k[sep+1:]
 		prop := webdav.Property{
@@ -185,6 +188,9 @@ func appPropertiesToMap(m map[string]string) map[xml.Name]webdav.Property {
 			log.Panicf("unexpected properties: %v %v", m, err)
 		}
 		sep := strings.Index(k, "!")
+		if sep < 0 {
+			log.Panicf("unexpected key: %v", k)
+		}
 		ns := k[:sep]
 		n := k[sep+1:]
 		prop := webdav.Property{
