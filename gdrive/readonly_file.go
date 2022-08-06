@@ -2,12 +2,14 @@ package gdrive
 
 import (
 	"bytes"
+	"encoding/xml"
 	"errors"
 	"io"
 	"io/ioutil"
 	"os"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/webdav"
 	"google.golang.org/api/drive/v3"
 )
 
@@ -18,6 +20,10 @@ type openReadonlyFile struct {
 	size          int64
 	pos           int64
 	contentReader io.Reader
+}
+
+func newOpenReadonlyFile(fs *fileSystem, file *drive.File) *openReadonlyFile {
+	return &openReadonlyFile{fs: fs, file: file}
 }
 
 func (f *openReadonlyFile) Write(p []byte) (int, error) {
@@ -85,7 +91,7 @@ func (f *openReadonlyFile) Read(p []byte) (n int, err error) {
 }
 
 func (f *openReadonlyFile) Seek(offset int64, whence int) (int64, error) {
-	log.Debug("Seek ", offset, whence)
+	log.Debugf("Seek %v %v", offset, whence)
 
 	if whence == 0 {
 		// io.SeekStart
@@ -109,4 +115,19 @@ func (f *openReadonlyFile) Seek(offset int64, whence int) (int64, error) {
 	}
 
 	panic("not implemented")
+}
+
+// DeadPropsHolder interface
+
+func (f *openReadonlyFile) DeadProps() (map[xml.Name]webdav.Property, error) {
+	log.Debugf("DeadProps %v %v", f.file.Name, f.file.AppProperties)
+	if len(f.file.AppProperties) == 0 {
+		return nil, nil
+	}
+	panic("not implemented")
+	// return nil, nil
+}
+
+func (f *openReadonlyFile) Patch(props []webdav.Proppatch) ([]webdav.Propstat, error) {
+	panic("should not be called")
 }

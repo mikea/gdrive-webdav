@@ -79,32 +79,31 @@ Alpha quality. I trust it my files.
  3. propfind_invalid2..... FAIL (PROPFIND with invalid namespace declaration in body (see FAQ) got 207 response not 400)
  4. propfind_d0........... pass
  5. propinit.............. pass
- 6. propset............... FAIL (PROPPATCH on `/litmus/prop': Could not read status line: connection was closed by server)
- 7. propget............... SKIPPED
+ 6. propset............... pass
+ 7. propget............... FAIL (No value given for property {http://example.com/neon/litmus/}prop9)
  8. propextended.......... pass
- 9. propmove.............. SKIPPED
-10. propget............... SKIPPED
-11. propdeletes........... SKIPPED
-12. propget............... SKIPPED
-13. propreplace........... SKIPPED
-14. propget............... SKIPPED
-15. propnullns............ SKIPPED
-16. propget............... SKIPPED
-17. prophighunicode....... SKIPPED
-18. propget............... SKIPPED
-19. propremoveset......... SKIPPED
-20. propget............... SKIPPED
-21. propsetremove......... SKIPPED
-22. propget............... SKIPPED
-23. propvalnspace......... SKIPPED
+ 9. propmove.............. pass
+10. propget............... FAIL (No value given for property {http://example.com/neon/litmus/}prop9)
+11. propdeletes........... pass
+12. propget............... FAIL (No value given for property {http://example.com/neon/litmus/}prop9)
+13. propreplace........... pass
+14. propget............... FAIL (No value given for property {http://example.com/neon/litmus/}prop9)
+15. propnullns............ pass
+16. propget............... FAIL (No value given for property {}nonamespace)
+17. prophighunicode....... pass
+18. propget............... FAIL (No value given for property {http://example.com/neon/litmus/}high-unicode)
+19. propremoveset......... pass
+20. propget............... FAIL (No value given for property {http://example.com/neon/litmus/}removeset)
+21. propsetremove......... pass
+22. propget............... pass
+23. propvalnspace......... pass
 24. propwformed........... pass
 25. propinit.............. pass
-26. propmanyns............ FAIL (PROPPATCH on `/litmus/prop': Could not read status line: connection was closed by server)
+26. propmanyns............ pass
 27. propget............... FAIL (No value given for property {http://example.com/kappa}somename)
 28. propcleanup........... pass
 29. finish................ pass
--> 16 tests were skipped.
-<- summary for `props': of 14 tests run: 10 passed, 4 failed. 71.4%
+<- summary for `props': of 30 tests run: 21 passed, 9 failed. 70.0%
 ```
 
 

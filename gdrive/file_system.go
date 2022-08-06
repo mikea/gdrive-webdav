@@ -68,17 +68,7 @@ func (fs *fileSystem) OpenFile(ctx context.Context, name string, flag int, perm 
 	name = normalizePath(name)
 
 	if flag&os.O_RDWR != 0 {
-		if flag != os.O_RDWR|os.O_CREATE|os.O_TRUNC {
-			panic("not implemented")
-		}
-
-		return &openWritableFile{
-			ctx:        ctx,
-			fileSystem: fs,
-			name:       name,
-			flag:       flag,
-			perm:       perm,
-		}, nil
+		return newOpenWritableFile(ctx, fs, name, flag, perm), nil
 	}
 
 	if flag == os.O_RDONLY {
@@ -86,9 +76,10 @@ func (fs *fileSystem) OpenFile(ctx context.Context, name string, flag int, perm 
 		if err != nil {
 			return nil, err
 		}
-		return &openReadonlyFile{fs: fs, file: file.file}, nil
+		return newOpenReadonlyFile(fs, file.file), nil
 	}
 
+	log.Errorf("unsupported open mode: %v", flag)
 	return nil, fmt.Errorf("unsupported open mode: %v", flag)
 }
 
@@ -203,20 +194,21 @@ func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) 
 		query += " and mimeType='" + mimeTypeFolder + "'"
 	}
 	q.Q(query)
+	// q.Fields("files(appProperties)")
 	log.Tracef("Query: %v", q)
 
 	r, err := q.Do()
-
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
 
+	log.Tracef("response: %v", r.Files)
+
 	for _, file := range r.Files {
 		if ignoreFile(file) {
 			continue
 		}
-
 		return &fileAndPath{file: file, path: p}, nil
 	}
 
