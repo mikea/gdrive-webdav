@@ -120,7 +120,8 @@ func (f *openReadonlyFile) Seek(offset int64, whence int) (int64, error) {
 // DeadPropsHolder interface
 
 func (f *openReadonlyFile) DeadProps() (map[xml.Name]webdav.Property, error) {
-	log.Debugf("DeadProps %v %v", f.file.Name, f.file.AppProperties)
+	log.Debugf("DeadProps %v", f.file.Name)
+	log.Tracef("appProperties %v", f.file.AppProperties)
 	if len(f.file.AppProperties) == 0 {
 		return nil, nil
 	}

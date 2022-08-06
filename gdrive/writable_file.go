@@ -115,6 +115,7 @@ func (f *openWritableFile) DeadProps() (map[xml.Name]webdav.Property, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Tracef("appProperties %v", fileAndPath.file.AppProperties)
 	if len(fileAndPath.file.AppProperties) == 0 {
 		return nil, nil
 	}
@@ -129,7 +130,12 @@ func (f *openWritableFile) Patch(props []webdav.Proppatch) ([]webdav.Propstat, e
 		for j := range props[i].Props {
 			prop := props[i].Props[j]
 			key := url.QueryEscape(prop.XMLName.Space + "!" + prop.XMLName.Local)
-			appProperties[key] = string(prop.InnerXML)
+			if len(prop.InnerXML) > 0 {
+				appProperties[key] = string(prop.InnerXML)
+			} else {
+				// todo: this should be nil, but defined types don't let me.
+				appProperties[key] = ""
+			}
 		}
 	}
 	file := drive.File{
@@ -155,6 +161,9 @@ func appPropertiesToList(m map[string]string) []webdav.Propstat {
 	var props []webdav.Property
 
 	for k, v := range m {
+		if len(v) == 0 {
+			continue
+		}
 		k, err := url.QueryUnescape(k)
 		if err != nil {
 			log.Panicf("unexpected properties: %v %v", m, err)
@@ -183,6 +192,9 @@ func appPropertiesToMap(m map[string]string) map[xml.Name]webdav.Property {
 	props := make(map[xml.Name]webdav.Property)
 
 	for k, v := range m {
+		if len(v) == 0 {
+			continue
+		}
 		k, err := url.QueryUnescape(k)
 		if err != nil {
 			log.Panicf("unexpected properties: %v %v", m, err)

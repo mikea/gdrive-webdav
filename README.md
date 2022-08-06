@@ -85,9 +85,9 @@ Alpha quality. I trust it my files.
  9. propmove.............. pass
 10. propget............... pass
 11. propdeletes........... pass
-12. propget............... FAIL (Deleted property `{http://example.com/neon/litmus/}prop4' was still present)
+12. propget............... pass
 13. propreplace........... pass
-14. propget............... FAIL (Deleted property `{http://example.com/neon/litmus/}prop4' was still present)
+14. propget............... pass
 15. propnullns............ pass
 16. propget............... pass
 17. prophighunicode....... pass
@@ -95,7 +95,7 @@ Alpha quality. I trust it my files.
 19. propremoveset......... pass
 20. propget............... pass
 21. propsetremove......... pass
-22. propget............... FAIL (Deleted property `{http://example.com/neon/litmus/}removeset' was still present)
+22. propget............... pass
 23. propvalnspace......... pass
 24. propwformed........... pass
 25. propinit.............. pass
@@ -103,7 +103,7 @@ Alpha quality. I trust it my files.
 27. propget............... pass
 28. propcleanup........... pass
 29. finish................ pass
-<- summary for `props': of 30 tests run: 25 passed, 5 failed. 83.3%
+<- summary for `props': of 30 tests run: 28 passed, 2 failed. 93.3%
 ```
 
 
