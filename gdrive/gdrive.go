@@ -1,7 +1,6 @@
 package gdrive
 
 import (
-	"flag"
 	"strings"
 	"time"
 
@@ -15,10 +14,6 @@ import (
 
 const (
 	mimeTypeFolder = "application/vnd.google-apps.folder"
-)
-
-var (
-	logHTTP = flag.Bool("log-http", false, "Log http requests")
 )
 
 type fileAndPath struct {
@@ -35,15 +30,9 @@ func NewFS(ctx context.Context, clientID string, clientSecret string) webdav.Fil
 		panic(-3)
 	}
 
-	roundTripper := httpClient.Transport
-	if *logHTTP {
-		roundTripper = &loggingTransport{roundTripper}
-	}
-
 	fs := &fileSystem{
-		client:       client,
-		roundTripper: roundTripper,
-		cache:        gocache.New(5*time.Minute, 30*time.Second),
+		client: client,
+		cache:  gocache.New(5*time.Minute, 30*time.Second),
 	}
 	return fs
 }

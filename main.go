@@ -45,6 +45,12 @@ func main() {
 	handler := &webdav.Handler{
 		FileSystem: gdrive.NewFS(context.Background(), *clientID, *clientSecret),
 		LockSystem: gdrive.NewLS(),
+		Logger: func(req *http.Request, err error) {
+			log.Debugf("%+v", req)
+			if err != nil {
+				log.Error(err)
+			}
+		},
 	}
 
 	http.HandleFunc("/debug/gc", gcHandler)

@@ -3,7 +3,6 @@ package gdrive
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -16,9 +15,8 @@ import (
 )
 
 type fileSystem struct {
-	client       *drive.Service
-	roundTripper http.RoundTripper
-	cache        *gocache.Cache
+	client *drive.Service
+	cache  *gocache.Cache
 }
 
 func (fs *fileSystem) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
@@ -194,7 +192,7 @@ func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) 
 		query += " and mimeType='" + mimeTypeFolder + "'"
 	}
 	q.Q(query)
-	q.Fields("files(id, name, appProperties)")
+	q.Fields("files(id, name, appProperties, mimeType, size, modifiedTime, createdTime)")
 	log.Tracef("Query: %v", q)
 
 	r, err := q.Do()
@@ -210,6 +208,7 @@ func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) 
 		return &fileAndPath{file: file, path: p}, nil
 	}
 
+	log.Errorf("Can't file file %v", p)
 	return nil, os.ErrNotExist
 }
 

@@ -74,9 +74,8 @@ func (f *openWritableFile) Close() error {
 	}
 
 	if parentID == "" {
-		err = os.ErrNotExist
-		log.Error(err)
-		return err
+		log.Errorf("Can't file file %v", f.name)
+		return os.ErrNotExist
 	}
 
 	file := &drive.File{
@@ -138,6 +137,10 @@ func (f *openWritableFile) Patch(props []webdav.Proppatch) ([]webdav.Propstat, e
 			}
 		}
 	}
+	if len(appProperties) == 0 {
+		return nil, nil
+	}
+
 	file := drive.File{
 		AppProperties: appProperties,
 	}
