@@ -47,8 +47,8 @@ func main() {
 		LockSystem: gdrive.NewLS(),
 		Logger: func(req *http.Request, err error) {
 			log.Tracef("%+v", req)
-			if err != nil {
-				log.Error(err)
+			if log.IsLevelEnabled(log.TraceLevel) && err != nil {
+				log.Errorf("response error %v", err)
 			}
 		},
 	}
