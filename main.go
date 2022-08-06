@@ -46,7 +46,7 @@ func main() {
 		FileSystem: gdrive.NewFS(context.Background(), *clientID, *clientSecret),
 		LockSystem: gdrive.NewLS(),
 		Logger: func(req *http.Request, err error) {
-			log.Debugf("%+v", req)
+			log.Tracef("%+v", req)
 			if err != nil {
 				log.Error(err)
 			}
