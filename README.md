@@ -34,7 +34,7 @@ Alpha quality. I trust it my files.
 * Win8: Cannot connect to http://localhost:8765/ , using WIN8 network share builtin webdav support
   * Win8 MiniRedirector Client does not seem to send correct PROPFIND. Missing xml on request body 0 length.
 
-[Litmus](http://webdav.org/neon/litmus/) test results as of Jul 2022:
+[Litmus](http://webdav.org/neon/litmus/) test results as of Aug 2022:
 
 ```text
 -> running `basic':
@@ -77,7 +77,7 @@ Alpha quality. I trust it my files.
  1. begin................. pass
  2. propfind_invalid...... pass
  3. propfind_invalid2..... FAIL (PROPFIND with invalid namespace declaration in body (see FAQ) got 207 response not 400)
- 4. propfind_d0........... FAIL (Base collection did not define {DAV:}collection property)
+ 4. propfind_d0........... pass
  5. propinit.............. pass
  6. propset............... pass
  7. propget............... pass
@@ -103,7 +103,7 @@ Alpha quality. I trust it my files.
 27. propget............... pass
 28. propcleanup........... pass
 29. finish................ pass
-<- summary for `props': of 30 tests run: 28 passed, 2 failed. 93.3%
+<- summary for `props': of 30 tests run: 29 passed, 1 failed. 96.7%
 ```
 
 
