@@ -194,7 +194,7 @@ func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) 
 		query += " and mimeType='" + mimeTypeFolder + "'"
 	}
 	q.Q(query)
-	// q.Fields("files(appProperties)")
+	q.Fields("files(id, name, appProperties)")
 	log.Tracef("Query: %v", q)
 
 	r, err := q.Do()
@@ -202,8 +202,6 @@ func (fs *fileSystem) getFile0(p string, onlyFolder bool) (*fileAndPath, error) 
 		log.Error(err)
 		return nil, err
 	}
-
-	log.Tracef("response: %v", r.Files)
 
 	for _, file := range r.Files {
 		if ignoreFile(file) {

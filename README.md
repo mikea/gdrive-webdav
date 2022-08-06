@@ -77,33 +77,33 @@ Alpha quality. I trust it my files.
  1. begin................. pass
  2. propfind_invalid...... pass
  3. propfind_invalid2..... FAIL (PROPFIND with invalid namespace declaration in body (see FAQ) got 207 response not 400)
- 4. propfind_d0........... pass
+ 4. propfind_d0........... FAIL (Base collection did not define {DAV:}collection property)
  5. propinit.............. pass
  6. propset............... pass
- 7. propget............... FAIL (No value given for property {http://example.com/neon/litmus/}prop9)
+ 7. propget............... pass
  8. propextended.......... pass
  9. propmove.............. pass
-10. propget............... FAIL (No value given for property {http://example.com/neon/litmus/}prop9)
+10. propget............... pass
 11. propdeletes........... pass
-12. propget............... FAIL (No value given for property {http://example.com/neon/litmus/}prop9)
+12. propget............... FAIL (Deleted property `{http://example.com/neon/litmus/}prop4' was still present)
 13. propreplace........... pass
-14. propget............... FAIL (No value given for property {http://example.com/neon/litmus/}prop9)
+14. propget............... FAIL (Deleted property `{http://example.com/neon/litmus/}prop4' was still present)
 15. propnullns............ pass
-16. propget............... FAIL (No value given for property {}nonamespace)
+16. propget............... pass
 17. prophighunicode....... pass
-18. propget............... FAIL (No value given for property {http://example.com/neon/litmus/}high-unicode)
+18. propget............... pass
 19. propremoveset......... pass
-20. propget............... FAIL (No value given for property {http://example.com/neon/litmus/}removeset)
+20. propget............... pass
 21. propsetremove......... pass
-22. propget............... pass
+22. propget............... FAIL (Deleted property `{http://example.com/neon/litmus/}removeset' was still present)
 23. propvalnspace......... pass
 24. propwformed........... pass
 25. propinit.............. pass
 26. propmanyns............ pass
-27. propget............... FAIL (No value given for property {http://example.com/kappa}somename)
+27. propget............... pass
 28. propcleanup........... pass
 29. finish................ pass
-<- summary for `props': of 30 tests run: 21 passed, 9 failed. 70.0%
+<- summary for `props': of 30 tests run: 25 passed, 5 failed. 83.3%
 ```
 
 

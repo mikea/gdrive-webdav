@@ -111,7 +111,14 @@ func (f *openWritableFile) Seek(offset int64, whence int) (int64, error) {
 
 func (f *openWritableFile) DeadProps() (map[xml.Name]webdav.Property, error) {
 	log.Debugf("DeadProps %v", f.name)
-	return nil, nil
+	fileAndPath, err := f.fileSystem.getFile(f.name, false)
+	if err != nil {
+		return nil, err
+	}
+	if len(fileAndPath.file.AppProperties) == 0 {
+		return nil, nil
+	}
+	return appPropertiesToMap(fileAndPath.file.AppProperties), nil
 }
 
 func (f *openWritableFile) Patch(props []webdav.Proppatch) ([]webdav.Propstat, error) {
@@ -141,10 +148,10 @@ func (f *openWritableFile) Patch(props []webdav.Proppatch) ([]webdav.Propstat, e
 		return nil, err
 	}
 	f.fileSystem.invalidatePath(f.name)
-	return appPropertiesToPropstat(response.AppProperties), nil
+	return appPropertiesToList(response.AppProperties), nil
 }
 
-func appPropertiesToPropstat(m map[string]string) []webdav.Propstat {
+func appPropertiesToList(m map[string]string) []webdav.Propstat {
 	var props []webdav.Property
 
 	for k, v := range m {
@@ -167,4 +174,24 @@ func appPropertiesToPropstat(m map[string]string) []webdav.Propstat {
 		Status: 200,
 	}
 	return []webdav.Propstat{propstat}
+}
+
+func appPropertiesToMap(m map[string]string) map[xml.Name]webdav.Property {
+	props := make(map[xml.Name]webdav.Property)
+
+	for k, v := range m {
+		k, err := url.QueryUnescape(k)
+		if err != nil {
+			log.Panicf("unexpected properties: %v %v", m, err)
+		}
+		sep := strings.Index(k, "!")
+		ns := k[:sep]
+		n := k[sep+1:]
+		prop := webdav.Property{
+			XMLName:  xml.Name{Space: ns, Local: n},
+			InnerXML: []byte(v),
+		}
+		props[prop.XMLName] = prop
+	}
+	return props
 }

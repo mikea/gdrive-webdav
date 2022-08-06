@@ -124,8 +124,7 @@ func (f *openReadonlyFile) DeadProps() (map[xml.Name]webdav.Property, error) {
 	if len(f.file.AppProperties) == 0 {
 		return nil, nil
 	}
-	panic("not implemented")
-	// return nil, nil
+	return appPropertiesToMap(f.file.AppProperties), nil
 }
 
 func (f *openReadonlyFile) Patch(props []webdav.Proppatch) ([]webdav.Propstat, error) {
