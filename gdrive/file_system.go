@@ -19,7 +19,7 @@ type fileSystem struct {
 	cache  *gocache.Cache
 }
 
-func (fs *fileSystem) Mkdir(ctx context.Context, name string, perm os.FileMode) error {
+func (fs *fileSystem) Mkdir(_ctx context.Context, name string, perm os.FileMode) error {
 	log.Debugf("Mkdir %v %v", name, perm)
 	name = normalizePath(name)
 	pID, err := fs.getFileID(name, false)
@@ -81,7 +81,7 @@ func (fs *fileSystem) OpenFile(ctx context.Context, name string, flag int, perm 
 	return nil, fmt.Errorf("unsupported open mode: %v", flag)
 }
 
-func (fs *fileSystem) RemoveAll(ctx context.Context, name string) error {
+func (fs *fileSystem) RemoveAll(_ctx context.Context, name string) error {
 	log.Debugf("RemoveAll %v", name)
 	name = normalizePath(name)
 	id, err := fs.getFileID(name, false)
@@ -100,7 +100,7 @@ func (fs *fileSystem) RemoveAll(ctx context.Context, name string) error {
 	return nil
 }
 
-func (fs *fileSystem) Rename(ctx context.Context, oldName, newName string) error {
+func (fs *fileSystem) Rename(_ctx context.Context, oldName, newName string) error {
 	log.Debugf("Rename %v -> %v", oldName, newName)
 
 	newFileAndPath, err := fs.getFile(newName, false)

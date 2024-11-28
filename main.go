@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/mikea/gdrive-webdav/gdrive"
 	log "github.com/sirupsen/logrus"
@@ -59,19 +60,24 @@ func main() {
 
 	log.Info("Listening on: ", *addr)
 
-	err := http.ListenAndServe(*addr, nil)
+	server := &http.Server{
+		Addr:              *addr,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	err := server.ListenAndServe()
 	if err != nil {
 		log.Errorf("Error starting HTTP server: %v", err)
 		os.Exit(-1)
 	}
 }
 
-func gcHandler(w http.ResponseWriter, r *http.Request) {
+func gcHandler(w http.ResponseWriter, _r *http.Request) {
 	log.Info("GC")
 	runtime.GC()
 	w.WriteHeader(200)
 }
 
-func notFoundHandler(w http.ResponseWriter, r *http.Request) {
+func notFoundHandler(w http.ResponseWriter, _r *http.Request) {
 	w.WriteHeader(404)
 }

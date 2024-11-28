@@ -26,11 +26,11 @@ func newOpenReadonlyFile(fs *fileSystem, file *drive.File) *openReadonlyFile {
 	return &openReadonlyFile{fs: fs, file: file}
 }
 
-func (f *openReadonlyFile) Write(p []byte) (int, error) {
+func (f *openReadonlyFile) Write(_p []byte) (int, error) {
 	return -1, errors.New("can't write to readonly file")
 }
 
-func (f *openReadonlyFile) Readdir(count int) ([]os.FileInfo, error) {
+func (f *openReadonlyFile) Readdir(_count int) ([]os.FileInfo, error) {
 	return f.fs.readdir(f.file)
 }
 
@@ -126,6 +126,6 @@ func (f *openReadonlyFile) DeadProps() (map[xml.Name]webdav.Property, error) {
 	return appPropertiesToMap(f.file.AppProperties), nil
 }
 
-func (f *openReadonlyFile) Patch(props []webdav.Proppatch) ([]webdav.Propstat, error) {
+func (f *openReadonlyFile) Patch(_props []webdav.Proppatch) ([]webdav.Propstat, error) {
 	panic("should not be called")
 }
