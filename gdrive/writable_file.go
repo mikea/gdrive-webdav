@@ -38,7 +38,7 @@ func (f *openWritableFile) Write(p []byte) (int, error) {
 	return n, err
 }
 
-func (f *openWritableFile) Readdir(_count int) ([]os.FileInfo, error) {
+func (f *openWritableFile) Readdir(_ int) ([]os.FileInfo, error) {
 	panic("not supported")
 }
 
