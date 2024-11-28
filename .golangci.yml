@@ -8,3 +8,5 @@ linters:
     - unused
   enable:
     - ifshort
+  disable:
+    - depguards
