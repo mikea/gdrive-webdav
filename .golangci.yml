@@ -6,7 +6,5 @@ linters:
     - metalinter
     - module
     - unused
-  enable:
-    - ifshort
   disable:
     - depguard
