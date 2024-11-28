@@ -9,4 +9,4 @@ linters:
   enable:
     - ifshort
   disable:
-    - depguards
+    - depguard
