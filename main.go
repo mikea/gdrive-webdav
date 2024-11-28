@@ -72,12 +72,12 @@ func main() {
 	}
 }
 
-func gcHandler(w http.ResponseWriter, _r *http.Request) {
+func gcHandler(w http.ResponseWriter, _ *http.Request) {
 	log.Info("GC")
 	runtime.GC()
 	w.WriteHeader(200)
 }
 
-func notFoundHandler(w http.ResponseWriter, _r *http.Request) {
+func notFoundHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(404)
 }

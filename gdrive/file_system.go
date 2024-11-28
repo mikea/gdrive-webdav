@@ -137,7 +137,7 @@ func (fs *fileSystem) Rename(_ context.Context, oldName, newName string) error {
 	return nil
 }
 
-func (fs *fileSystem) Stat(ctx context.Context, name string) (os.FileInfo, error) {
+func (fs *fileSystem) Stat(_ context.Context, name string) (os.FileInfo, error) {
 	log.Debugf("Stat %v", name)
 	f, err := fs.getFile(name, false)
 
