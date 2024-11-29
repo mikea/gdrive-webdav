@@ -7,7 +7,8 @@ Simple Google Drive => WebDAV bridge.
 ## Usage
 
 * Build docker image: `docker build -t gdrive-webdav .`
-* Create a project and enable "Drive API" (https://developers.google.com/workspace/guides/create-project)
+* Create a project and enable "Google Drive API" (https://developers.google.com/workspace/guides/create-project)
+* Configure OAuth consent screen (https://developers.google.com/workspace/guides/configure-oauth-consent), add ".../auth/drive" scope, add yourself to "Test Users".
 * Obtain OAuth client ID credentials for *Desktop* Application (https://developers.google.com/workspace/guides/create-credentials#oauth-client-id)
 * Run using docker:
 
