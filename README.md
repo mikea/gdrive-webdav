@@ -13,7 +13,7 @@ Simple Google Drive => WebDAV bridge.
 
   ```bash
   touch .gdrive_token
-  docker run -ti --rm -p 8765:8765 -v $(pwd)/.gdrive_token:/root/.gdrive_token gdrive-webdav --client-id=<client_id> --client-secret=<client_secret>
+  docker run -ti --rm -p 8765:8765 -v $(pwd)/.gdrive_token:/root/.gdrive_token ghcr.io/mikea/gdrive-webdav:master --client-id=<client_id> --client-secret=<client_secret>
   ```
 
 * Connect to WebDAV network drive using http://localhost:8765/
