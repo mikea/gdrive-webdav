@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	addr         = flag.String("addr", ":8765", "listen address")
+	addr         = flag.String("addr", "localhost:8765", "listen address")
 	clientID     = flag.String("client-id", "", "OAuth client ID")
 	clientSecret = flag.String("client-secret", "", "OAuth client secret")
 	debug        = flag.Bool("debug", false, "enable debug logging")
@@ -101,17 +101,14 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// cache it via gdrive’s helper
 	if err := gdrive.SaveToken(token); err != nil {
 		log.Errorf("saving token: %v", err)
 	}
 
-	// build the WebDAV FS once
 	driveFSOnce.Do(func() {
 		driveFS = gdrive.NewFS(context.Background(), oauthCfg.Client(ctx, token))
 	})
 
-	// tell the user
 	fmt.Fprintln(w, "Authorisation complete – you can now use WebDAV at the root URL (/).")
 }
 
