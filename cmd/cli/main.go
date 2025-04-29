@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
-	"runtime"
 	"sync"
 	"time"
 
@@ -23,6 +23,8 @@ var (
 	clientSecret = flag.String("client-secret", "", "OAuth client secret")
 	debug        = flag.Bool("debug", false, "enable debug logging")
 	trace        = flag.Bool("trace", false, "enable trace logging")
+	authUser     = flag.String("user", "", "Basic-Auth username (empty = no auth)")
+	authPass     = flag.String("pass", "", "Basic-Auth password")
 )
 
 var (
@@ -58,9 +60,8 @@ func main() {
 
 	http.HandleFunc("/auth", authHandler) // starts the flow
 	http.HandleFunc("/oauth2callback", callbackHandler)
-	http.HandleFunc("/debug/gc", gcHandler)
 	http.HandleFunc("/favicon.ico", notFoundHandler)
-	http.HandleFunc("/", webdavOrRedirect) // WebDAV after auth
+	http.Handle("/", basicAuth(http.HandlerFunc(webdavOrRedirect))) // WebDAV after auth
 
 	server := &http.Server{
 		Addr:              *addr,
@@ -107,7 +108,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	// build the WebDAV FS once
 	driveFSOnce.Do(func() {
-		driveFS = gdrive.NewFS(context.Background(), *clientID, *clientSecret)
+		driveFS = gdrive.NewFS(context.Background(), oauthCfg.Client(ctx, token))
 	})
 
 	// tell the user
@@ -116,10 +117,12 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 
 // decides whether we already have a FS or still need auth
 func webdavOrRedirect(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	driveFSOnce.Do(func() {
 		// if a token is already cached from a previous run we can initialise immediately
-		if _, err := gdrive.LoadToken(); err == nil {
-			driveFS = gdrive.NewFS(context.Background(), *clientID, *clientSecret)
+		if token, err := gdrive.LoadToken(); err == nil {
+			driveFS = gdrive.NewFS(context.Background(), oauthCfg.Client(ctx, token))
 		}
 	})
 
@@ -141,12 +144,25 @@ func webdavOrRedirect(w http.ResponseWriter, r *http.Request) {
 	handler.ServeHTTP(w, r)
 }
 
-func gcHandler(w http.ResponseWriter, _ *http.Request) {
-	log.Info("GC")
-	runtime.GC()
-	w.WriteHeader(http.StatusOK)
-}
-
 func notFoundHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
+}
+
+func basicAuth(next http.Handler) http.Handler {
+	// if authUser is empty we just pass through
+	if *authUser == "" {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u, p, ok := r.BasicAuth()
+		if !ok ||
+			subtle.ConstantTimeCompare([]byte(u), []byte(*authUser)) != 1 ||
+			subtle.ConstantTimeCompare([]byte(p), []byte(*authPass)) != 1 {
+
+			w.Header().Set("WWW-Authenticate", `Basic realm="DriveDAV"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

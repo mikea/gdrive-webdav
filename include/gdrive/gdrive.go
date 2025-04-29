@@ -1,6 +1,7 @@
 package gdrive
 
 import (
+	"net/http"
 	"strings"
 	"time"
 
@@ -22,8 +23,7 @@ type fileAndPath struct {
 }
 
 // NewFS creates new gdrive file system.
-func NewFS(ctx context.Context, clientID string, clientSecret string) webdav.FileSystem {
-	httpClient := newHTTPClient(ctx, clientID, clientSecret)
+func NewFS(ctx context.Context, httpClient *http.Client) webdav.FileSystem {
 	client, err := drive.NewService(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
 		log.Errorf("An error occurred creating Drive client: %v\n", err)
