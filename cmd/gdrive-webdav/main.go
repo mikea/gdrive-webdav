@@ -5,13 +5,13 @@ import (
 	"crypto/subtle"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/alirostami1/gdrive-webdav/include/gdrive"
-	log "github.com/sirupsen/logrus"
+	"github.com/samber/slog-http"
 	"golang.org/x/net/webdav"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -21,8 +21,7 @@ var (
 	addr         = flag.String("addr", "localhost:8765", "listen address")
 	clientID     = flag.String("client-id", "", "OAuth client ID")
 	clientSecret = flag.String("client-secret", "", "OAuth client secret")
-	debug        = flag.Bool("debug", false, "enable debug logging")
-	trace        = flag.Bool("trace", false, "enable trace logging")
+	logLevel     = flag.String("log-level", "info", "log level (debug, info, warn, error)")
 	authUser     = flag.String("user", "", "Basic-Auth username (empty = no auth)")
 	authPass     = flag.String("pass", "", "Basic-Auth password")
 )
@@ -34,15 +33,21 @@ var (
 	oauthCfg    *oauth2.Config
 )
 
+func ParseLevel(s string) slog.Level {
+	var level slog.Level
+	var err = level.UnmarshalText([]byte(s))
+	if err != nil {
+		level = slog.LevelInfo
+	}
+	return level
+}
+
 func main() {
 	flag.Parse()
 
-	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
-	if *trace {
-		log.SetLevel(log.TraceLevel)
-	} else if *debug {
-		log.SetLevel(log.DebugLevel)
-	}
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: ParseLevel(*logLevel),
+	}))
 
 	if *clientID == "" || *clientSecret == "" {
 		fmt.Fprintln(os.Stderr, "Both --client-id and --client-secret are required. See https://developers.google.com/drive/quickstart-go")
@@ -58,19 +63,19 @@ func main() {
 		RedirectURL:  redirectURL,
 	}
 
-	http.HandleFunc("/auth", authHandler) // starts the flow
-	http.HandleFunc("/oauth2callback", callbackHandler)
-	http.HandleFunc("/favicon.ico", notFoundHandler)
-	http.Handle("/", basicAuth(http.HandlerFunc(webdavOrRedirect))) // WebDAV after auth
+	mux := http.NewServeMux()
 
-	server := &http.Server{
-		Addr:              *addr,
-		ReadHeaderTimeout: 10 * time.Second,
-	}
+	mux.HandleFunc("/auth", authHandler) // starts the flow
+	mux.HandleFunc("/oauth2callback", callbackHandler)
+	mux.HandleFunc("/favicon.ico", notFoundHandler)
+	mux.Handle("/", basicAuth(http.HandlerFunc(webdavOrRedirect))) // WebDAV after auth
 
-	log.Infof("Listening on %s", *addr)
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("HTTP server error: %v", err)
+	handler := sloghttp.Recovery(mux)
+	handler = sloghttp.New(logger)(handler)
+
+	slog.Info("started htpp server", slog.String("address", *addr))
+	if err := http.ListenAndServe(*addr, handler); err != nil {
+		slog.Error("HTTP server failed: ", slog.String("error", err.Error()))
 	}
 }
 
@@ -102,11 +107,15 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := gdrive.SaveToken(token); err != nil {
-		log.Errorf("saving token: %v", err)
+		slog.Error("failed to save token to file", slog.String("error", err.Error()))
 	}
 
 	driveFSOnce.Do(func() {
-		driveFS = gdrive.NewFS(context.Background(), oauthCfg.Client(ctx, token))
+		df, err := gdrive.NewFS(context.Background(), oauthCfg.Client(ctx, token))
+		if err != nil {
+			slog.Info("failed to create file system", slog.String("error", err.Error()))
+		}
+		driveFS = df
 	})
 
 	fmt.Fprintln(w, "Authorisation complete – you can now use WebDAV at the root URL (/).")
@@ -116,12 +125,17 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 func webdavOrRedirect(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	driveFSOnce.Do(func() {
-		// if a token is already cached from a previous run we can initialise immediately
-		if token, err := gdrive.LoadToken(); err == nil {
-			driveFS = gdrive.NewFS(context.Background(), oauthCfg.Client(ctx, token))
-		}
-	})
+	if token, err := gdrive.LoadToken(); err == nil {
+		driveFSOnce.Do(func() {
+			// if a token is already cached from a previous run we can initialise immediately
+			df, err := gdrive.NewFS(context.Background(), oauthCfg.Client(ctx, token))
+			if err != nil {
+				slog.Info("failed to create file system", slog.String("error", err.Error()))
+				return
+			}
+			driveFS = df
+		})
+	}
 
 	if driveFS == nil {
 		http.Redirect(w, r, "/auth", http.StatusFound)
@@ -132,10 +146,7 @@ func webdavOrRedirect(w http.ResponseWriter, r *http.Request) {
 		FileSystem: driveFS,
 		LockSystem: driveLS,
 		Logger: func(req *http.Request, err error) {
-			log.Tracef("%+v", req)
-			if log.IsLevelEnabled(log.TraceLevel) && err != nil {
-				log.Errorf("response error %v", err)
-			}
+			slog.Error("response error", slog.String("error", err.Error()))
 		},
 	}
 	handler.ServeHTTP(w, r)
