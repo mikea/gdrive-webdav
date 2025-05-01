@@ -10,6 +10,8 @@ jobs:
   release:
     name: Build & Publish Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: 📥 Check out source
         uses: actions/checkout@v4
@@ -44,6 +46,7 @@ jobs:
         with:
           tag_name:     ${{ github.ref_name }}
           release_name: ${{ github.ref_name }}
+          body: "Automated release build for tag ${{ github.ref_name }} on commit ${{ github.sha }}"
           draft:        false
           prerelease:   false
 
