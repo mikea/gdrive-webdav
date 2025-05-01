@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -19,16 +20,6 @@ import (
 	"golang.org/x/net/webdav"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-)
-
-var (
-	host         = flag.String("host", "localhost", "host address")
-	port         = flag.Int("addr", 8765, "port")
-	clientID     = flag.String("client-id", "", "OAuth client ID")
-	clientSecret = flag.String("client-secret", "", "OAuth client secret")
-	logLevel     = flag.String("log-level", "info", "log level (debug, info, warn, error)")
-	authUser     = flag.String("user", "", "Basic-Auth username (empty = no auth)")
-	authPass     = flag.String("pass", "", "Basic-Auth password")
 )
 
 var (
@@ -42,12 +33,67 @@ var (
 	oauthCfg    *oauth2.Config
 )
 
+// simple helpers to pull from ENV with a fallback
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+func getEnvAsInt(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			return i
+		}
+	}
+	return fallback
+}
+
+var (
+	host = flag.String(
+		"host",
+		getEnv("GWD_HOST", "localhost"),
+		"host address (env: GWD_HOST)",
+	)
+	port = flag.Int(
+		"addr",
+		getEnvAsInt("GWD_PORT", 8765),
+		"port (env: GWD_PORT)",
+	)
+	clientID = flag.String(
+		"client-id",
+		getEnv("GWD_CLIENT_ID", ""),
+		"OAuth client ID (env: GWD_CLIENT_ID)",
+	)
+	clientSecret = flag.String(
+		"client-secret",
+		getEnv("GWD_CLIENT_SECRET", ""),
+		"OAuth client secret (env: GWD_CLIENT_SECRET)",
+	)
+	logLevel = flag.String(
+		"log-level",
+		getEnv("GWD_LOG_LEVEL", "info"),
+		"log level (debug, info, warn, error) (env: GWD_LOG_LEVEL)",
+	)
+	authUser = flag.String(
+		"user",
+		getEnv("GWD_USER", ""),
+		"Basic-Auth username (empty = no auth) (env: GWD_USER)",
+	)
+	authPass = flag.String(
+		"pass",
+		getEnv("GWD_PASS", ""),
+		"Basic-Auth password (env: GWD_PASS)",
+	)
+)
+
 func ParseLevel(s string) slog.Level {
 	var level slog.Level
-	var err = level.UnmarshalText([]byte(s))
-	if err != nil {
-		slog.Error("unknow log level passed falling back to info, use --help to check available log levels", slog.String("chosen-level", *logLevel))
-		level = slog.LevelInfo
+	if err := level.UnmarshalText([]byte(s)); err != nil {
+		slog.Error("unknown log level, falling back to info",
+			slog.String("chosen-level", s),
+		)
+		return slog.LevelInfo
 	}
 	return level
 }
