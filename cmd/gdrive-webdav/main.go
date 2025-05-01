@@ -85,6 +85,11 @@ var (
 		getEnv("GWD_PASS", ""),
 		"Basic-Auth password (env: GWD_PASS)",
 	)
+	oauthRedirectBase = flag.String(
+		"pass",
+		getEnv("GWD_OAUTH_REDIRECT_BASE", ""),
+		"The URL base for google OAuth2.0 redirect url (env: GWD_OAUTH_REDIRECT_BASE)",
+	)
 )
 
 func ParseLevel(s string) slog.Level {
@@ -118,7 +123,12 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	redirectURL := fmt.Sprintf("http://%s%d/oauth2callback", *host, *port)
+	var redirectURL string
+	if *oauthRedirectBase != "" {
+		redirectURL = fmt.Sprintf("%s%d/oauth2callback", *oauthRedirectBase, *port)
+	} else {
+		redirectURL = fmt.Sprintf("http://%s%d/oauth2callback", *host, *port)
+	}
 	oauthCfg = &oauth2.Config{
 		ClientID:     *clientID,
 		ClientSecret: *clientSecret,
