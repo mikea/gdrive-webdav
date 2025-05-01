@@ -86,7 +86,7 @@ var (
 		"Basic-Auth password (env: GWD_PASS)",
 	)
 	oauthRedirectBase = flag.String(
-		"pass",
+		"oauth_redirect_base",
 		getEnv("GWD_OAUTH_REDIRECT_BASE", ""),
 		"The URL base for google OAuth2.0 redirect url (env: GWD_OAUTH_REDIRECT_BASE)",
 	)
