@@ -37,6 +37,8 @@ Alpha quality. I trust it my files.
   * Win8 MiniRedirector Client does not seem to send correct PROPFIND. Missing xml on request body 0 length.
 
 Litmus test results as of Aug 2022:
+
+```
 -> running `basic':
  0. init.................. pass
  1. begin................. pass
@@ -104,6 +106,7 @@ Litmus test results as of Aug 2022:
 28. propcleanup........... pass
 29. finish................ pass
 <- summary for `props': of 30 tests run: 29 passed, 1 failed. 96.7%
+```
 
 ## Development
 
