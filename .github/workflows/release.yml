@@ -51,6 +51,8 @@ jobs:
       # upload each binary + its checksum
       - name: 📦 Upload amd64 binary
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: gdrive-webdav-linux-amd64
@@ -59,6 +61,8 @@ jobs:
 
       - name: 🔑 Upload amd64 checksum
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: gdrive-webdav-linux-amd64.sha256
@@ -67,6 +71,8 @@ jobs:
 
       - name: 📦 Upload arm64 binary
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: gdrive-webdav-linux-arm64
@@ -75,6 +81,8 @@ jobs:
 
       - name: 🔑 Upload arm64 checksum
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: gdrive-webdav-linux-arm64.sha256
@@ -83,6 +91,8 @@ jobs:
 
       - name: 📦 Upload 386 binary
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: gdrive-webdav-linux-386
@@ -91,6 +101,8 @@ jobs:
 
       - name: 🔑 Upload 386 checksum
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: gdrive-webdav-linux-386.sha256
