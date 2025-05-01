@@ -1,7 +1,5 @@
 # gdrive-webdav
 
-![Go Workflow](https://github.com/mikea/gdrive-webdav/workflows/Go/badge.svg)
-
 Simple Google Drive => WebDAV bridge.
 
 ## Usage
@@ -14,15 +12,18 @@ Simple Google Drive => WebDAV bridge.
 
   ```bash
   touch .gdrive_token
-  docker run -ti --rm -p 8765:8765 -v $(pwd)/.gdrive_token:/root/.gdrive_token ghcr.io/mikea/gdrive-webdav:master --client-id=<client_id> --client-secret=<client_secret>
+  docker run -ti --rm -p 8765:8765 -v $(pwd)/.gdrive_token:/root/.gdrive_token gdrive-webdav --client-id=<client_id> --client-secret=<client_secret>
   ```
 
 * Connect to WebDAV network drive using http://localhost:8765/
 
 Supported flags:
 
-* `--addr` service address, `:8765` by default
-* `--debug`, `--trace` print more information
+* `--host` service host address, `localhost` by default
+* `--port` service port address, `8765` by default
+* `--log-level` log level, one of `info`, `warn`, `error`, and `debug`, `info` by default
+* `--user` username for webdav server, empty means no authentication
+* `--pass` password for webdav server
 
 ## Status
 
@@ -35,9 +36,7 @@ Alpha quality. I trust it my files.
 * Win8: Cannot connect to http://localhost:8765/ , using WIN8 network share builtin webdav support
   * Win8 MiniRedirector Client does not seem to send correct PROPFIND. Missing xml on request body 0 length.
 
-[Litmus](http://webdav.org/neon/litmus/) test results as of Aug 2022:
-
-```text
+Litmus test results as of Aug 2022:
 -> running `basic':
  0. init.................. pass
  1. begin................. pass
@@ -105,8 +104,6 @@ Alpha quality. I trust it my files.
 28. propcleanup........... pass
 29. finish................ pass
 <- summary for `props': of 30 tests run: 29 passed, 1 failed. 96.7%
-```
-
 
 ## Development
 
