@@ -5,10 +5,9 @@ import (
 	"encoding/xml"
 	"errors"
 	"io"
-	"io/ioutil"
+	"log/slog"
 	"os"
 
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/webdav"
 	"google.golang.org/api/drive/v3"
 )
@@ -51,18 +50,18 @@ func (f *openReadonlyFile) initContent() error {
 
 	resp, err := f.fs.client.Files.Get(f.file.Id).Download()
 	if err != nil {
-		log.Error(err)
+		slog.Error("error downloading file", slog.String("name", f.file.Name), slog.String("error", err.Error()))
 		return err
 	}
 
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Error(err)
+		slog.Error("error reading response body", slog.String("name", f.file.Name), slog.String("error", err.Error()))
 		return err
 	}
 	err = resp.Body.Close()
 	if err != nil {
-		log.Error(err)
+		slog.Error("error closing response body", slog.String("name", f.file.Name), slog.String("error", err.Error()))
 		return err
 	}
 
@@ -73,17 +72,17 @@ func (f *openReadonlyFile) initContent() error {
 }
 
 func (f *openReadonlyFile) Read(p []byte) (n int, err error) {
-	log.Debugf("Read %v %v", f.file.Name, len(p))
+	slog.Debug("Read", slog.String("name", f.file.Name), slog.Int("size", len(p)))
 	err = f.initContent()
 
 	if err != nil {
-		log.Error(err)
+		slog.Error("error initializing content", slog.String("name", f.file.Name), slog.String("error", err.Error()))
 		return 0, err
 	}
 
 	n, err = f.contentReader.Read(p)
 	if err != nil {
-		log.Error(err)
+		slog.Error("error reading content", slog.String("name", f.file.Name), slog.String("error", err.Error()))
 		return 0, err
 	}
 	f.pos += int64(n)
@@ -91,7 +90,7 @@ func (f *openReadonlyFile) Read(p []byte) (n int, err error) {
 }
 
 func (f *openReadonlyFile) Seek(offset int64, whence int) (int64, error) {
-	log.Debugf("Seek %v %v", offset, whence)
+	slog.Debug("Seek", slog.Int64("offset", offset), slog.Int("whence", whence))
 
 	if whence == 0 {
 		// io.SeekStart

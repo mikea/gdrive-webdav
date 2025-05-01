@@ -1,10 +1,10 @@
 package gdrive
 
 import (
+	"log/slog"
 	"os"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/api/drive/v3"
 )
 
@@ -18,7 +18,13 @@ type fileInfo struct {
 func newFileInfo(file *drive.File) *fileInfo {
 	modTime, err := getModTime(file)
 	if err != nil {
-		log.Error(err)
+		slog.Error(
+			"failed to parse modified time",
+			slog.String("file", file.Name),
+			slog.String("modified_time", file.ModifiedTime),
+			slog.String("created_time", file.CreatedTime),
+			slog.Any("error", err),
+		)
 		panic(err)
 	}
 

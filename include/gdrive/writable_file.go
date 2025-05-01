@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/xml"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"path"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"golang.org/x/net/webdav"
 	"google.golang.org/api/drive/v3"
@@ -32,13 +33,14 @@ func newOpenWritableFile(ctx context.Context, fileSystem *fileSystem, name strin
 }
 
 func (f *openWritableFile) Write(p []byte) (int, error) {
-	log.Debugf("Write %v %v", f.name, len(p))
+	slog.Debug("Write", slog.String("name", f.name), slog.Int("len", len(p)))
 	n, err := f.buffer.Write(p)
 	f.size += int64(n)
 	return n, err
 }
 
 func (f *openWritableFile) Readdir(_ int) ([]os.FileInfo, error) {
+	slog.Error("Readdir not implemented")
 	panic("not supported")
 }
 
@@ -50,17 +52,17 @@ func (f *openWritableFile) Stat() (os.FileInfo, error) {
 }
 
 func (f *openWritableFile) Close() error {
-	log.Debugf("Close %v", f.name)
+	slog.Debug("Close", slog.String("name", f.name), slog.Int("len", f.buffer.Len()))
 	fs := f.fileSystem
 	fileID, err := fs.getFileID(f.name, false)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.Error(err)
+		slog.Error("error getting file ID", slog.String("name", f.name), slog.String("error", err.Error()))
 		return err
 	}
 
 	if fileID != "" {
 		err = os.ErrExist
-		log.Error(err)
+		slog.Error("file already exists", slog.String("name", f.name), slog.String("id", fileID))
 		return err
 	}
 
@@ -69,12 +71,12 @@ func (f *openWritableFile) Close() error {
 
 	parentID, err := fs.getFileID(parent, true)
 	if err != nil {
-		log.Error(err)
+		slog.Error("error getting parent ID", slog.String("parent", parent), slog.String("error", err.Error()))
 		return err
 	}
 
 	if parentID == "" {
-		log.Errorf("Can't file file %v", f.name)
+		slog.Error("parent not found", slog.String("parent", parent))
 		return os.ErrNotExist
 	}
 
@@ -85,36 +87,36 @@ func (f *openWritableFile) Close() error {
 
 	_, err = fs.client.Files.Create(file).Media(&f.buffer).Do()
 	if err != nil {
-		log.Error(err)
+		slog.Error("error creating file", slog.String("name", f.name), slog.String("error", err.Error()))
 		return err
 	}
 
 	fs.invalidatePath(f.name)
 	fs.invalidatePath(parent)
 
-	log.Trace("Close succesfull ", f.name)
+	slog.Debug("Close", slog.String("name", f.name), slog.Int("len", f.buffer.Len()))
 	return nil
 }
 
 func (f *openWritableFile) Read(p []byte) (n int, err error) {
-	log.Panic("not implemented", p)
+	slog.Error("Read not implemented", slog.String("name", f.name), slog.Int("len", len(p)))
 	return -1, nil
 }
 
 func (f *openWritableFile) Seek(offset int64, whence int) (int64, error) {
-	log.Panic("not implemented", offset, whence)
+	slog.Error("Seek not implemented", slog.String("name", f.name), slog.Int64("offset", offset), slog.Int("whence", whence))
 	return -1, nil
 }
 
 // DeadPropsHolder interface
 
 func (f *openWritableFile) DeadProps() (map[xml.Name]webdav.Property, error) {
-	log.Debugf("DeadProps %v", f.name)
+	slog.Debug("DeadProps", slog.String("name", f.name))
 	fileAndPath, err := f.fileSystem.getFile(f.name, false)
 	if err != nil {
 		return nil, err
 	}
-	log.Tracef("appProperties %v", fileAndPath.file.AppProperties)
+	slog.Debug("DeadProps", slog.String("name", f.name), slog.Any("props", fileAndPath.file.AppProperties))
 	if len(fileAndPath.file.AppProperties) == 0 {
 		return nil, nil
 	}
@@ -122,7 +124,7 @@ func (f *openWritableFile) DeadProps() (map[xml.Name]webdav.Property, error) {
 }
 
 func (f *openWritableFile) Patch(props []webdav.Proppatch) ([]webdav.Propstat, error) {
-	log.Debugf("Patch %v %v", f.name, props)
+	slog.Debug("Patch", slog.String("name", f.name), slog.Any("props", props))
 
 	appProperties := make(map[string]string)
 	for i := range props {
@@ -153,7 +155,7 @@ func (f *openWritableFile) Patch(props []webdav.Proppatch) ([]webdav.Propstat, e
 	u.Fields("appProperties")
 	response, err := u.Do()
 	if err != nil {
-		log.Error(err)
+		slog.Error("error updating file", slog.String("name", f.name), slog.String("error", err.Error()))
 		return nil, err
 	}
 	f.fileSystem.invalidatePath(f.name)
@@ -169,11 +171,12 @@ func appPropertiesToList(m map[string]string) []webdav.Propstat {
 		}
 		k, err := url.QueryUnescape(k)
 		if err != nil {
-			log.Panicf("unexpected properties: %v %v", m, err)
+			slog.Error("unexpected properties", slog.String("key", k), slog.String("value", v))
+			panic(fmt.Sprintf("unexpected properties: %v %v", m, err))
 		}
 		sep := strings.Index(k, "!")
 		if sep < 0 {
-			log.Panicf("unexpected key: %v", k)
+			slog.Error("unexpected key", slog.String("key", k))
 		}
 		ns := k[:sep]
 		n := k[sep+1:]
@@ -200,11 +203,12 @@ func appPropertiesToMap(m map[string]string) map[xml.Name]webdav.Property {
 		}
 		k, err := url.QueryUnescape(k)
 		if err != nil {
-			log.Panicf("unexpected properties: %v %v", m, err)
+			slog.Error("unexpected properties", slog.String("key", k), slog.String("value", v))
+			panic(fmt.Sprintf("unexpected properties: %v %v", m, err))
 		}
 		sep := strings.Index(k, "!")
 		if sep < 0 {
-			log.Panicf("unexpected key: %v", k)
+			slog.Error("unexpected key", slog.String("key", k))
 		}
 		ns := k[:sep]
 		n := k[sep+1:]

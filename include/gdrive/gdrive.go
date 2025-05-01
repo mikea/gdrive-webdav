@@ -6,7 +6,6 @@ import (
 	"time"
 
 	gocache "github.com/pmylund/go-cache"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"golang.org/x/net/webdav"
 	"google.golang.org/api/drive/v3"
@@ -23,18 +22,17 @@ type fileAndPath struct {
 }
 
 // NewFS creates new gdrive file system.
-func NewFS(ctx context.Context, httpClient *http.Client) webdav.FileSystem {
+func NewFS(ctx context.Context, httpClient *http.Client) (webdav.FileSystem, error) {
 	client, err := drive.NewService(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
-		log.Errorf("An error occurred creating Drive client: %v\n", err)
-		panic(-3)
+		return nil, err
 	}
 
 	fs := &fileSystem{
 		client: client,
 		cache:  gocache.New(5*time.Minute, 30*time.Second),
 	}
-	return fs
+	return fs, nil
 }
 
 // NewLS creates new GDrive locking system
