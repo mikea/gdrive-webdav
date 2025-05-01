@@ -2,7 +2,6 @@ name: 🚀 Release
 
 on:
   push:
-    # semantic‐version tags only
     tags:
       - 'v*'
 
@@ -11,12 +10,10 @@ jobs:
     name: Build & Publish Release
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write-all
     steps:
       - name: 📥 Check out source
         uses: actions/checkout@v4
-        with:
-         token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 🛠️ Set up Go
         uses: actions/setup-go@v4
@@ -44,11 +41,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name:     ${{ github.ref_name }}
-          release_name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
           body: "Automated release build for tag ${{ github.ref_name }} on commit ${{ github.sha }}"
-          draft:        false
-          prerelease:   false
+          draft: false
+          prerelease: false
 
       # upload each binary + its checksum
       - name: 📦 Upload amd64 binary
