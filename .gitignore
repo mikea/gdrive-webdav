@@ -3,3 +3,4 @@ pkg/
 .*token
 *.log
 .vscode
+.direnv/
