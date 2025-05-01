@@ -46,6 +46,7 @@ func ParseLevel(s string) slog.Level {
 	var level slog.Level
 	var err = level.UnmarshalText([]byte(s))
 	if err != nil {
+		slog.Error("unknow log level passed falling back to info, use --help to check available log levels", slog.String("chosen-level", *logLevel))
 		level = slog.LevelInfo
 	}
 	return level
