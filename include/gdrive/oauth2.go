@@ -3,18 +3,28 @@ package gdrive
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
+	"log/slog"
 	"os"
 	"os/user"
 
 	"golang.org/x/oauth2"
 )
 
+// simple helpers to pull from ENV with a fallback
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
 var (
-	tokenFileFlag = flag.String("token-file", "", "OAuth token cache file. ~/.gdrive_token by default.")
+	tokenFileFlag = flag.String("token-file",
+		getEnv("GWD_TOKEN_FILE", ""),
+		"path to token file. ~/.gdrive_token by default.")
 )
 
-func tokenFile() (string, error) {
+func tokenFilePath() (string, error) {
 	u, err := user.Current()
 	if err != nil {
 		return "", err
@@ -27,7 +37,7 @@ func tokenFile() (string, error) {
 }
 
 func LoadToken() (*oauth2.Token, error) {
-	tokenFile, err := tokenFile()
+	tokenFile, err := tokenFilePath()
 	if err != nil {
 		return nil, err
 	}
@@ -47,12 +57,12 @@ func LoadToken() (*oauth2.Token, error) {
 }
 
 func SaveToken(token *oauth2.Token) error {
-	file, err := tokenFile()
+	filePath, err := tokenFilePath()
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Saving credential file to: %s\n", file)
-	f, err := os.Create(file)
+	slog.Info("saving credential file", slog.String("file_path", filePath))
+	f, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
