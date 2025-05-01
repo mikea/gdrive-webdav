@@ -5,12 +5,13 @@ on:
     tags:
       - 'v*'
 
+permissions: write-all
 jobs:
   release:
     name: Build & Publish Release
     runs-on: ubuntu-latest
-    permissions:
-      contents: write-all
+    # permissions:
+    #   contents: write
     steps:
       - name: 📥 Check out source
         uses: actions/checkout@v4
