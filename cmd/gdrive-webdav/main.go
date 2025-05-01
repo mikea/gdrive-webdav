@@ -211,7 +211,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	driveFSOnce.Do(func() {
-		df, err := gdrive.NewFS(rootCtx, oauthCfg.Client(ctx, token))
+		df, err := gdrive.NewFS(rootCtx, oauthCfg.Client(rootCtx, token))
 		if err != nil {
 			slog.Info("failed to create file system", slog.String("error", err.Error()))
 		}
