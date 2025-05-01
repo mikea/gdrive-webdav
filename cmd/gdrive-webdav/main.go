@@ -125,7 +125,7 @@ func main() {
 
 	var redirectURL string
 	if *oauthRedirectBase != "" {
-		redirectURL = fmt.Sprintf("%s%d/oauth2callback", *oauthRedirectBase, *port)
+		redirectURL = fmt.Sprintf("%s/oauth2callback", *oauthRedirectBase)
 	} else {
 		redirectURL = fmt.Sprintf("http://%s%d/oauth2callback", *host, *port)
 	}
