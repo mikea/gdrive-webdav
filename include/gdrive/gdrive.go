@@ -1,6 +1,7 @@
 package gdrive
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -22,7 +23,7 @@ type fileAndPath struct {
 }
 
 // NewFS creates new gdrive file system.
-func NewFS(ctx context.Context, httpClient *http.Client) (webdav.FileSystem, error) {
+func NewFS(ctx context.Context, httpClient *http.Client, logger *slog.Logger) (webdav.FileSystem, error) {
 	client, err := drive.NewService(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
 		return nil, err
@@ -31,6 +32,7 @@ func NewFS(ctx context.Context, httpClient *http.Client) (webdav.FileSystem, err
 	fs := &fileSystem{
 		client: client,
 		cache:  gocache.New(5*time.Minute, 30*time.Second),
+		logger: logger,
 	}
 	return fs, nil
 }

@@ -24,23 +24,24 @@ type openWritableFile struct {
 	name       string
 	flag       int
 	perm       os.FileMode
+	logger     *slog.Logger
 }
 
 func newOpenWritableFile(ctx context.Context, fileSystem *fileSystem, name string, flag int, perm os.FileMode) *openWritableFile {
 	return &openWritableFile{
-		ctx: ctx, fileSystem: fileSystem, name: name, flag: flag, perm: perm,
+		ctx: ctx, fileSystem: fileSystem, name: name, flag: flag, perm: perm, logger: fileSystem.logger,
 	}
 }
 
 func (f *openWritableFile) Write(p []byte) (int, error) {
-	slog.Debug("Write", slog.String("name", f.name), slog.Int("len", len(p)))
+	f.logger.Debug("Write", slog.String("name", f.name), slog.Int("len", len(p)))
 	n, err := f.buffer.Write(p)
 	f.size += int64(n)
 	return n, err
 }
 
 func (f *openWritableFile) Readdir(_ int) ([]os.FileInfo, error) {
-	slog.Error("Readdir not implemented")
+	f.logger.Error("Readdir not implemented")
 	panic("not supported")
 }
 
@@ -52,17 +53,17 @@ func (f *openWritableFile) Stat() (os.FileInfo, error) {
 }
 
 func (f *openWritableFile) Close() error {
-	slog.Debug("Close", slog.String("name", f.name), slog.Int("len", f.buffer.Len()))
+	f.logger.Debug("Close", slog.String("name", f.name), slog.Int("len", f.buffer.Len()))
 	fs := f.fileSystem
 	fileID, err := fs.getFileID(f.name, false)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		slog.Error("error getting file ID", slog.String("name", f.name), slog.String("error", err.Error()))
+		f.logger.Error("error getting file ID", slog.String("name", f.name), slog.String("error", err.Error()))
 		return err
 	}
 
 	if fileID != "" {
 		err = os.ErrExist
-		slog.Error("file already exists", slog.String("name", f.name), slog.String("id", fileID))
+		f.logger.Error("file already exists", slog.String("name", f.name), slog.String("id", fileID))
 		return err
 	}
 
@@ -71,12 +72,12 @@ func (f *openWritableFile) Close() error {
 
 	parentID, err := fs.getFileID(parent, true)
 	if err != nil {
-		slog.Error("error getting parent ID", slog.String("parent", parent), slog.String("error", err.Error()))
+		f.logger.Error("error getting parent ID", slog.String("parent", parent), slog.String("error", err.Error()))
 		return err
 	}
 
 	if parentID == "" {
-		slog.Error("parent not found", slog.String("parent", parent))
+		f.logger.Error("parent not found", slog.String("parent", parent))
 		return os.ErrNotExist
 	}
 
@@ -87,44 +88,44 @@ func (f *openWritableFile) Close() error {
 
 	_, err = fs.client.Files.Create(file).Media(&f.buffer).Do()
 	if err != nil {
-		slog.Error("error creating file", slog.String("name", f.name), slog.String("error", err.Error()))
+		f.logger.Error("error creating file", slog.String("name", f.name), slog.String("error", err.Error()))
 		return err
 	}
 
 	fs.invalidatePath(f.name)
 	fs.invalidatePath(parent)
 
-	slog.Debug("Close", slog.String("name", f.name), slog.Int("len", f.buffer.Len()))
+	f.logger.Debug("Close", slog.String("name", f.name), slog.Int("len", f.buffer.Len()))
 	return nil
 }
 
 func (f *openWritableFile) Read(p []byte) (n int, err error) {
-	slog.Error("Read not implemented", slog.String("name", f.name), slog.Int("len", len(p)))
+	f.logger.Error("Read not implemented", slog.String("name", f.name), slog.Int("len", len(p)))
 	return -1, nil
 }
 
 func (f *openWritableFile) Seek(offset int64, whence int) (int64, error) {
-	slog.Error("Seek not implemented", slog.String("name", f.name), slog.Int64("offset", offset), slog.Int("whence", whence))
+	f.logger.Error("Seek not implemented", slog.String("name", f.name), slog.Int64("offset", offset), slog.Int("whence", whence))
 	return -1, nil
 }
 
 // DeadPropsHolder interface
 
 func (f *openWritableFile) DeadProps() (map[xml.Name]webdav.Property, error) {
-	slog.Debug("DeadProps", slog.String("name", f.name))
+	f.logger.Debug("DeadProps", slog.String("name", f.name))
 	fileAndPath, err := f.fileSystem.getFile(f.name, false)
 	if err != nil {
 		return nil, err
 	}
-	slog.Debug("DeadProps", slog.String("name", f.name), slog.Any("props", fileAndPath.file.AppProperties))
+	f.logger.Debug("DeadProps", slog.String("name", f.name), slog.Any("props", fileAndPath.file.AppProperties))
 	if len(fileAndPath.file.AppProperties) == 0 {
 		return nil, nil
 	}
-	return appPropertiesToMap(fileAndPath.file.AppProperties), nil
+	return appPropertiesToMap(fileAndPath.file.AppProperties, f.logger), nil
 }
 
 func (f *openWritableFile) Patch(props []webdav.Proppatch) ([]webdav.Propstat, error) {
-	slog.Debug("Patch", slog.String("name", f.name), slog.Any("props", props))
+	f.logger.Debug("Patch", slog.String("name", f.name), slog.Any("props", props))
 
 	appProperties := make(map[string]string)
 	for i := range props {
@@ -155,14 +156,14 @@ func (f *openWritableFile) Patch(props []webdav.Proppatch) ([]webdav.Propstat, e
 	u.Fields("appProperties")
 	response, err := u.Do()
 	if err != nil {
-		slog.Error("error updating file", slog.String("name", f.name), slog.String("error", err.Error()))
+		f.logger.Error("error updating file", slog.String("name", f.name), slog.String("error", err.Error()))
 		return nil, err
 	}
 	f.fileSystem.invalidatePath(f.name)
-	return appPropertiesToList(response.AppProperties), nil
+	return appPropertiesToList(response.AppProperties, f.logger), nil
 }
 
-func appPropertiesToList(m map[string]string) []webdav.Propstat {
+func appPropertiesToList(m map[string]string, logger *slog.Logger) []webdav.Propstat {
 	var props []webdav.Property
 
 	for k, v := range m {
@@ -171,12 +172,12 @@ func appPropertiesToList(m map[string]string) []webdav.Propstat {
 		}
 		k, err := url.QueryUnescape(k)
 		if err != nil {
-			slog.Error("unexpected properties", slog.String("key", k), slog.String("value", v))
+			logger.Error("unexpected properties", slog.String("key", k), slog.String("value", v))
 			panic(fmt.Sprintf("unexpected properties: %v %v", m, err))
 		}
 		sep := strings.Index(k, "!")
 		if sep < 0 {
-			slog.Error("unexpected key", slog.String("key", k))
+			logger.Error("unexpected key", slog.String("key", k))
 		}
 		ns := k[:sep]
 		n := k[sep+1:]
@@ -194,7 +195,7 @@ func appPropertiesToList(m map[string]string) []webdav.Propstat {
 	return []webdav.Propstat{propstat}
 }
 
-func appPropertiesToMap(m map[string]string) map[xml.Name]webdav.Property {
+func appPropertiesToMap(m map[string]string, logger *slog.Logger) map[xml.Name]webdav.Property {
 	props := make(map[xml.Name]webdav.Property)
 
 	for k, v := range m {
@@ -203,12 +204,12 @@ func appPropertiesToMap(m map[string]string) map[xml.Name]webdav.Property {
 		}
 		k, err := url.QueryUnescape(k)
 		if err != nil {
-			slog.Error("unexpected properties", slog.String("key", k), slog.String("value", v))
+			logger.Error("unexpected properties", slog.String("key", k), slog.String("value", v))
 			panic(fmt.Sprintf("unexpected properties: %v %v", m, err))
 		}
 		sep := strings.Index(k, "!")
 		if sep < 0 {
-			slog.Error("unexpected key", slog.String("key", k))
+			logger.Error("unexpected key", slog.String("key", k))
 		}
 		ns := k[:sep]
 		n := k[sep+1:]

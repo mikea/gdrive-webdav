@@ -12,7 +12,7 @@ const (
 )
 
 func (fs *fileSystem) invalidatePath(p string) {
-	slog.Debug("invalidate cache path", slog.String("path", p))
+	fs.logger.Debug("invalidate cache path", slog.String("path", p))
 	fs.cache.Delete(cacheKeyFile + p)
 }
 
@@ -22,12 +22,12 @@ type fileLookupResult struct {
 }
 
 func (fs *fileSystem) getFile(p string, onlyFolder bool) (*fileAndPath, error) {
-	slog.Debug("getting file", slog.String("path", p), slog.Bool("only_folder", onlyFolder))
+	fs.logger.Debug("getting file", slog.String("path", p), slog.Bool("only_folder", onlyFolder))
 	p = strings.TrimSuffix(p, "/")
 	key := cacheKeyFile + p
 
 	if lookup, found := fs.cache.Get(key); found {
-		slog.Debug("cache hit", slog.String("path", p))
+		fs.logger.Debug("cache hit", slog.String("path", p))
 		result := lookup.(*fileLookupResult)
 		return result.fp, result.err
 	}

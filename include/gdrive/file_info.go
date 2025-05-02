@@ -15,10 +15,10 @@ type fileInfo struct {
 	size    int64
 }
 
-func newFileInfo(file *drive.File) *fileInfo {
+func newFileInfo(file *drive.File, logger *slog.Logger) *fileInfo {
 	modTime, err := getModTime(file)
 	if err != nil {
-		slog.Error(
+		logger.Error(
 			"failed to parse modified time",
 			slog.String("file", file.Name),
 			slog.String("modified_time", file.ModifiedTime),

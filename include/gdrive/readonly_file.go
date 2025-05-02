@@ -19,10 +19,11 @@ type openReadonlyFile struct {
 	size          int64
 	pos           int64
 	contentReader io.Reader
+	logger        *slog.Logger
 }
 
 func newOpenReadonlyFile(fs *fileSystem, file *drive.File) *openReadonlyFile {
-	return &openReadonlyFile{fs: fs, file: file}
+	return &openReadonlyFile{fs: fs, file: file, logger: fs.logger}
 }
 
 func (f *openReadonlyFile) Write(_ []byte) (int, error) {
@@ -34,7 +35,7 @@ func (f *openReadonlyFile) Readdir(_ int) ([]os.FileInfo, error) {
 }
 
 func (f *openReadonlyFile) Stat() (os.FileInfo, error) {
-	return newFileInfo(f.file), nil
+	return newFileInfo(f.file, f.logger), nil
 }
 
 func (f *openReadonlyFile) Close() error {
@@ -50,18 +51,18 @@ func (f *openReadonlyFile) initContent() error {
 
 	resp, err := f.fs.client.Files.Get(f.file.Id).Download()
 	if err != nil {
-		slog.Error("error downloading file", slog.String("name", f.file.Name), slog.String("error", err.Error()))
+		f.logger.Error("error downloading file", slog.String("name", f.file.Name), slog.String("error", err.Error()))
 		return err
 	}
 
 	content, err := io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error("error reading response body", slog.String("name", f.file.Name), slog.String("error", err.Error()))
+		f.logger.Error("error reading response body", slog.String("name", f.file.Name), slog.String("error", err.Error()))
 		return err
 	}
 	err = resp.Body.Close()
 	if err != nil {
-		slog.Error("error closing response body", slog.String("name", f.file.Name), slog.String("error", err.Error()))
+		f.logger.Error("error closing response body", slog.String("name", f.file.Name), slog.String("error", err.Error()))
 		return err
 	}
 
@@ -72,17 +73,17 @@ func (f *openReadonlyFile) initContent() error {
 }
 
 func (f *openReadonlyFile) Read(p []byte) (n int, err error) {
-	slog.Debug("Read", slog.String("name", f.file.Name), slog.Int("size", len(p)))
+	f.logger.Debug("Read", slog.String("name", f.file.Name), slog.Int("size", len(p)))
 	err = f.initContent()
 
 	if err != nil {
-		slog.Error("error initializing content", slog.String("name", f.file.Name), slog.String("error", err.Error()))
+		f.logger.Error("error initializing content", slog.String("name", f.file.Name), slog.String("error", err.Error()))
 		return 0, err
 	}
 
 	n, err = f.contentReader.Read(p)
 	if err != nil {
-		slog.Error("error reading content", slog.String("name", f.file.Name), slog.String("error", err.Error()))
+		f.logger.Error("error reading content", slog.String("name", f.file.Name), slog.String("error", err.Error()))
 		return 0, err
 	}
 	f.pos += int64(n)
@@ -90,7 +91,7 @@ func (f *openReadonlyFile) Read(p []byte) (n int, err error) {
 }
 
 func (f *openReadonlyFile) Seek(offset int64, whence int) (int64, error) {
-	slog.Debug("Seek", slog.Int64("offset", offset), slog.Int("whence", whence))
+	f.logger.Debug("Seek", slog.Int64("offset", offset), slog.Int("whence", whence))
 
 	if whence == 0 {
 		// io.SeekStart
@@ -122,7 +123,7 @@ func (f *openReadonlyFile) DeadProps() (map[xml.Name]webdav.Property, error) {
 	if len(f.file.AppProperties) == 0 {
 		return nil, nil
 	}
-	return appPropertiesToMap(f.file.AppProperties), nil
+	return appPropertiesToMap(f.file.AppProperties, f.logger), nil
 }
 
 func (f *openReadonlyFile) Patch(_ []webdav.Proppatch) ([]webdav.Propstat, error) {

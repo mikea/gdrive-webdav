@@ -56,12 +56,12 @@ func LoadToken() (*oauth2.Token, error) {
 	return t, err
 }
 
-func SaveToken(token *oauth2.Token) error {
+func SaveToken(token *oauth2.Token, logger *slog.Logger) error {
 	filePath, err := tokenFilePath()
 	if err != nil {
 		return err
 	}
-	slog.Info("saving credential file", slog.String("file_path", filePath))
+	logger.Info("saving credential file", slog.String("file_path", filePath))
 	f, err := os.Create(filePath)
 	if err != nil {
 		return err
