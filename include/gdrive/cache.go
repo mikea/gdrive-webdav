@@ -1,10 +1,9 @@
 package gdrive
 
 import (
+	"log/slog"
 	"strings"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -13,7 +12,7 @@ const (
 )
 
 func (fs *fileSystem) invalidatePath(p string) {
-	log.Tracef("invalidatePath %v", p)
+	fs.logger.Debug("invalidate cache path", slog.String("path", p))
 	fs.cache.Delete(cacheKeyFile + p)
 }
 
@@ -23,12 +22,12 @@ type fileLookupResult struct {
 }
 
 func (fs *fileSystem) getFile(p string, onlyFolder bool) (*fileAndPath, error) {
-	log.Tracef("getFile %v %v", p, onlyFolder)
+	fs.logger.Debug("getting file", slog.String("path", p), slog.Bool("only_folder", onlyFolder))
 	p = strings.TrimSuffix(p, "/")
 	key := cacheKeyFile + p
 
 	if lookup, found := fs.cache.Get(key); found {
-		log.Trace("Reusing cached file: ", p)
+		fs.logger.Debug("cache hit", slog.String("path", p))
 		result := lookup.(*fileLookupResult)
 		return result.fp, result.err
 	}

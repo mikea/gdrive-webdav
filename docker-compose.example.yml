@@ -1,0 +1,22 @@
+services:
+  gdrive-webdav:
+    image: gdrive-webdav
+    container_name: gdrive-webdav
+    ports:
+      - "8765:8765"
+    volumes:
+      - tokenv:/root/.gdrive_token
+    environment:
+      GWD_TOKEN_FILE: /root/gw/token
+      GWD_LOG_LEVEL: info
+      GWD_USER: username
+      GWD_PASS: strong-password
+      GWD_HOST: 0.0.0.0
+      GWD_OAUTH_REDIRECT_BASE: https://example.com
+      GWD_PORT: 8765
+      GWD_CLIENT_ID: redacted.apps.googleusercontent.com
+      GWD_CLIENT_SECRET: redacted
+    restart: unless-stopped
+
+volumes:
+  - tokenv
