@@ -1,0 +1,8 @@
+[tools]
+go = "1.24"
+golangci-lint = "latest"
+just = "latest"
+
+[env]
+GOPATH = "{{env.HOME}}/go"
+PATH = "{{env.GOPATH}}/bin:{{env.PATH}}"
