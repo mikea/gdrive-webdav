@@ -5,27 +5,33 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: stable
-        id: go
-
-      - name: Check out code into the Go module directory
+      - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Get dependencies
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          version: latest
+
+      - name: Install tools with mise
         run: |
-          go get -v -t -d ./...
+          mise install
+          mise exec -- go version
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Get dependencies
+        run: mise exec -- just deps
 
       - name: Build
-        run: go build -v ./...
+        run: mise exec -- just build
 
       - name: Test
-        run: go test -v ./...
+        run: mise exec -- just test
 
       - name: Vet
-        run: go vet -v ./...
+        run: mise exec -- just vet
 
   docker:
     name: Docker
@@ -46,14 +52,21 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: stable
-        id: go
       - name: Checkout
         uses: actions/checkout@v4
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+
+      - name: Install mise
+        uses: jdx/mise-action@v2
         with:
-          version: v1.62
+          version: latest
+
+      - name: Install tools with mise
+        run: |
+          mise install
+          mise exec -- go version
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Run linter
+        run: mise exec -- just lint
