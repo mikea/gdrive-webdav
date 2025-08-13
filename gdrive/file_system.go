@@ -1,6 +1,7 @@
 package gdrive
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -9,7 +10,6 @@ import (
 
 	gocache "github.com/pmylund/go-cache"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"golang.org/x/net/webdav"
 	"google.golang.org/api/drive/v3"
 )

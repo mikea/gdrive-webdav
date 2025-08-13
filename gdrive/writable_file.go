@@ -2,6 +2,7 @@ package gdrive
 
 import (
 	"bytes"
+	"context"
 	"encoding/xml"
 	"errors"
 	"net/url"
@@ -10,7 +11,6 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"golang.org/x/net/webdav"
 	"google.golang.org/api/drive/v3"
 )

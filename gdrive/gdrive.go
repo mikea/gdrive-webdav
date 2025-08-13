@@ -1,12 +1,12 @@
 package gdrive
 
 import (
+	"context"
 	"strings"
 	"time"
 
 	gocache "github.com/pmylund/go-cache"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"golang.org/x/net/webdav"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
