@@ -9,9 +9,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install mise
-        uses: jdx/mise-action@v2
-        with:
-          version: latest
+        run: |
+          curl -fsSL https://mise.run | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install tools with mise
         run: |
@@ -33,6 +33,9 @@ jobs:
       - name: Vet
         run: mise exec -- just vet
 
+      - name: Lint
+        run: mise exec -- just lint
+
   docker:
     name: Docker
     runs-on: ubuntu-latest
@@ -48,25 +51,4 @@ jobs:
         with:
           push: false
           tags: skippa/gdrive-webdav
-  Lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
-      - name: Install mise
-        uses: jdx/mise-action@v2
-        with:
-          version: latest
-
-      - name: Install tools with mise
-        run: |
-          mise install
-          mise exec -- go version
-
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Run linter
-        run: mise exec -- just lint
