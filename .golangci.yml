@@ -1,10 +1,1 @@
-linters:
-  presets:
-    - bugs
-    # - error
-    - import
-    - metalinter
-    - module
-    - unused
-  disable:
-    - depguard
+version: "2"

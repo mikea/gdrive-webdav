@@ -63,7 +63,11 @@ func getTokenFromFile() (*oauth2.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			log.Printf("Error closing token file: %v", closeErr)
+		}
+	}()
 
 	t := &oauth2.Token{}
 	err = json.NewDecoder(f).Decode(t)
@@ -100,6 +104,10 @@ func saveToken(token *oauth2.Token) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			log.Printf("Error closing credential file: %v", closeErr)
+		}
+	}()
 	return json.NewEncoder(f).Encode(token)
 }
