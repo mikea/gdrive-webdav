@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"io"
-	"io/ioutil"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -55,7 +54,7 @@ func (f *openReadonlyFile) initContent() error {
 		return err
 	}
 
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error(err)
 		return err

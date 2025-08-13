@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mise install:*)",
+      "Bash(mise exec:*)",
+      "WebFetch(domain:golangci-lint.run)"
+    ],
+    "deny": []
+  }
+}
