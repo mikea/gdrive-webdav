@@ -6,7 +6,7 @@ require (
 	github.com/pmylund/go-cache v2.1.0+incompatible
 	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/net v0.46.0
-	golang.org/x/oauth2 v0.32.0
+	golang.org/x/oauth2 v0.33.0
 	google.golang.org/api v0.254.0
 )
 
